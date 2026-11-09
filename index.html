@@ -491,6 +491,7 @@ function friendly(e){
   if(c==='23505') return 'Data sudah ada. Periksa NIK, email, nama, atau periode yang sama.';
   if(c==='42501'||/row-level security/i.test(m)) return 'Akun Anda tidak berhak melakukan tindakan ini.';
   if(/Invalid login/i.test(m)) return 'Email atau kata sandi salah.';
+  if(/rate limit|security purposes/i.test(m)) return 'Terlalu banyak permintaan email. Tunggu beberapa saat lalu coba lagi.';
   if(/Email not confirmed/i.test(m)) return 'Email belum dikonfirmasi. Buka tautan konfirmasi di kotak masuk Anda.';
   if(/Failed to fetch|NetworkError/i.test(m)) return 'Tidak dapat terhubung ke server. Periksa koneksi internet lalu coba lagi.';
   return m;
@@ -608,6 +609,7 @@ function cloudApi(){
       return d||{id:session.user.id,email:session.user.email,nama:'',role:'pending'};},
     async signIn(email,password){ok(await sb.auth.signInWithPassword({email,password}));},
     async signUp(email,password,nama){const d=ok(await sb.auth.signUp({email,password,options:{data:{nama},emailRedirectTo:location.origin}}));return !!d.session;},
+    async resend(email){ok(await sb.auth.resend({type:'signup',email,options:{emailRedirectTo:location.origin}}));},
     async resetPw(email){ok(await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin}));},
     async updatePw(password){ok(await sb.auth.updateUser({password}));},
     async signOut(){await sb.auth.signOut();},
@@ -1145,9 +1147,9 @@ function renderLogin(){
     <details class="setup"><summary>Cara menghubungkan ke Supabase</summary><ol><li>Buat proyek di Supabase, buka SQL Editor, tempel SQL di bawah, lalu jalankan.</li><li>Di Authentication, pastikan Confirm email aktif. Isi Site URL dengan alamat Vercel Anda.</li><li>Isi <code>SUPABASE_URL</code> dan <code>SUPABASE_ANON_KEY</code> di index.html, unggah ke GitHub, lalu impor repositori ke Vercel.</li><li>Daftar lewat website, lalu jalankan perintah terakhir pada SQL untuk menjadikan akun Anda Admin HR.</li></ol><button class="btn sm" id="copy-sql" style="margin-bottom:14px">Salin SQL</button></details>`;
   }else{
     const m=S.authMode;
-    box=`<h2>${{masuk:'Masuk',daftar:'Daftar akun',lupa:'Atur ulang kata sandi'}[m]}</h2><p class="muted">${{masuk:'Gunakan email dan kata sandi Anda.',daftar:'Karyawan memakai email yang terdaftar di HR.',lupa:'Tautan pengaturan ulang dikirim ke email Anda.'}[m]}</p>
-    <form id="auth-f" novalidate><div id="auth-err"></div>${m==='daftar'?'<label class="fld">Nama lengkap<input name="nama" required autocomplete="name"></label>':''}<label class="fld">Email<input name="email" type="email" required autocomplete="email"></label>${m!=='lupa'?`<label class="fld">Kata sandi<input name="password" type="password" required minlength="8" autocomplete="${m==='masuk'?'current-password':'new-password'}">${m==='daftar'?'<span class="help">Minimal 8 karakter.</span>':''}</label>`:''}<button class="btn primary" type="submit">${{masuk:'Masuk',daftar:'Daftar',lupa:'Kirim tautan'}[m]}</button></form>
-    <p style="margin-top:14px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap">${m!=='masuk'?'<button class="link" data-auth="masuk">Kembali ke Masuk</button>':'<button class="link" data-auth="daftar">Daftar akun</button><button class="link" data-auth="lupa">Lupa kata sandi?</button>'}</p>`;
+    box=`<h2>${{masuk:'Masuk',daftar:'Daftar akun',lupa:'Atur ulang kata sandi',ulang:'Kirim ulang konfirmasi'}[m]}</h2><p class="muted">${{masuk:'Gunakan email dan kata sandi Anda.',daftar:'Karyawan memakai email yang terdaftar di HR.',lupa:'Tautan pengaturan ulang dikirim ke email Anda.',ulang:'Tautan konfirmasi baru dikirim ke email pendaftaran Anda.'}[m]}</p>
+    <form id="auth-f" novalidate><div id="auth-err">${S.authNotice?`<div class="err">${esc(S.authNotice)}</div>`:''}</div>${m==='daftar'?'<label class="fld">Nama lengkap<input name="nama" required autocomplete="name"></label>':''}<label class="fld">Email<input name="email" type="email" required autocomplete="email"></label>${m==='masuk'||m==='daftar'?`<label class="fld">Kata sandi<input name="password" type="password" required minlength="8" autocomplete="${m==='masuk'?'current-password':'new-password'}">${m==='daftar'?'<span class="help">Minimal 8 karakter.</span>':''}</label>`:''}<button class="btn primary" type="submit">${{masuk:'Masuk',daftar:'Daftar',lupa:'Kirim tautan',ulang:'Kirim ulang tautan'}[m]}</button></form>
+    <p style="margin-top:14px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap">${m!=='masuk'?'<button class="link" data-auth="masuk">Kembali ke Masuk</button>':'<button class="link" data-auth="daftar">Daftar akun</button><button class="link" data-auth="lupa">Lupa kata sandi?</button><button class="link" data-auth="ulang">Kirim ulang email konfirmasi</button>'}</p>`;
   }
   $('#app').innerHTML=`<div class="login">${loginArt()}<div class="login-box"><div class="login-card">${box}</div></div></div>`;
   const f=$('#auth-f');if(f)f.onsubmit=async e=>{e.preventDefault();const err=$('#auth-err'),say=(m,ok)=>err.innerHTML=`<div class="err" ${ok?'style="background:var(--jade-l);color:var(--jade-d)"':''}>${esc(m)}</div>`;
@@ -1155,6 +1157,7 @@ function renderLogin(){
     const v=Object.fromEntries(new FormData(f).entries()),b=$('[type=submit]',f);b.disabled=true;
     try{if(S.authMode==='masuk'){await Api.signIn(v.email,v.password);await enter();}
       else if(S.authMode==='daftar'){const live=await Api.signUp(v.email,v.password,v.nama);if(live)await enter();else{say('Periksa email Anda dan buka tautan konfirmasi untuk mengaktifkan akun.',1);b.disabled=false;}}
+      else if(S.authMode==='ulang'){await Api.resend(v.email);say('Tautan baru terkirim. Buka email terbaru dan klik tautannya satu kali.',1);b.disabled=false;}
       else{await Api.resetPw(v.email);say('Tautan terkirim bila email tersebut terdaftar.',1);b.disabled=false;}
     }catch(x){say(friendly(x));b.disabled=false;}};
   const c=$('#copy-sql');if(c)c.onclick=async()=>{try{await navigator.clipboard.writeText($('#schema-sql').textContent.trim());toast('SQL disalin.');}catch(e){toast('Gagal menyalin. Salin dari blok schema-sql di index.html.',1);}};
@@ -1163,7 +1166,7 @@ function renderLogin(){
 /* ---------- Peristiwa global ---------- */
 document.addEventListener('click',async e=>{
   const demo=e.target.closest('[data-demo]');if(demo){await Api.signInDemo(demo.dataset.demo);await enter();return;}
-  const au=e.target.closest('[data-auth]');if(au){S.authMode=au.dataset.auth;renderLogin();return;}
+  const au=e.target.closest('[data-auth]');if(au){S.authMode=au.dataset.auth;S.authNotice='';renderLogin();return;}
   if(e.target.closest('.sub'))document.body.classList.remove('nav-open');
   const el=e.target.closest('[data-act]');
   if(!e.target.closest('.dd'))closeDd();
@@ -1181,11 +1184,18 @@ document.addEventListener('visibilitychange',async()=>{if(document.hidden||!S.us
 
 (async function boot(){
   try{
+    const urlErr=new URLSearchParams(location.hash.slice(1));
+    if(urlErr.get('error_code')||urlErr.get('error')){
+      const expired=urlErr.get('error_code')==='otp_expired';
+      S.authNotice=expired?'Tautan email sudah kedaluwarsa atau sudah pernah dipakai. Kirim tautan baru di bawah ini.':'Tautan email tidak dapat diproses. Kirim tautan baru di bawah ini.';
+      S.authMode='ulang';
+    }
     if(MODE==='cloud'&&!window.supabase)throw new Error('Pustaka Supabase gagal dimuat. Periksa koneksi internet lalu muat ulang halaman.');
     Api=MODE==='cloud'?cloudApi():demoApi();
     if(Api.onRecovery)Api.onRecovery(()=>formModal({title:'Buat kata sandi baru',fields:[{k:'password',l:'Kata sandi baru',type:'password',req:1,full:1,help:'Minimal 8 karakter.'}],onSubmit:async v=>{if(v.password.length<8)throw new Error('Kata sandi minimal 8 karakter.');await Api.updatePw(v.password);await enter();return 'Kata sandi diperbarui.';}}));
     const s=await Api.loadSettings();if(s)S.settings={...S.settings,...s};
     await enter();
+    if(S.authNotice&&history.replaceState)history.replaceState(null,'',location.pathname);
   }catch(e){console.error(e);$('#app').innerHTML=`<div class="loading"><b>Aplikasi tidak dapat dibuka.</b><br>${esc(friendly(e))}</div>`;}
 })();
 </script>
