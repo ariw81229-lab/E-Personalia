@@ -353,7 +353,7 @@ begin
     case when exists(select 1 from karyawan where lower(email)=lower(new.email)) then 'karyawan' else 'pending' end);
   return new;
 end $$;
-create trigger on_auth_user_created after insert on auth.users for each row execute function public.akun_baru();
+create trigger hr_monitoring_akun_baru after insert on auth.users for each row execute function public.akun_baru();
 
 -- Menyelaraskan akun dan mencatat penambahan/penghapusan karyawan.
 create function public.karyawan_setelah() returns trigger language plpgsql security definer set search_path=public as $$
@@ -433,9 +433,9 @@ create policy tulis on public.slip_gaji for all to authenticated using (my_role(
 
 create policy baca on public.log_aktivitas for select to authenticated using (my_role()='admin');
 
-revoke all on all tables in schema public from anon;
+revoke all on public.pengaturan,public.shift,public.karyawan,public.profil,public.cuti,public.slip_gaji,public.log_aktivitas from anon;
 grant select on public.pengaturan to anon;
-grant select,insert,update,delete on all tables in schema public to authenticated;
+grant select,insert,update,delete on public.pengaturan,public.shift,public.karyawan,public.profil,public.cuti,public.slip_gaji,public.log_aktivitas to authenticated;
 
 insert into public.shift(nama,jam_mulai,jam_selesai,keterangan) values
  ('Reguler','08:00','17:00','Senin sampai Jumat'),('Pagi','06:00','14:00',''),('Siang','14:00','22:00',''),('Malam','22:00','06:00','');
