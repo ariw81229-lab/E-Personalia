@@ -7,20 +7,20 @@
 <meta name="description" content="Monitoring data karyawan, cuti, kuota, slip gaji, shift, dan laporan.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
   --ink:#16302b;--ink-2:#4b625c;--ink-3:#6c817b;--bg:#eef3f1;--paper:#fff;--line:#d6e0dc;--line-2:#e8eeeb;
   --jade:#0f6b5c;--jade-d:#0a5346;--jade-l:#dcefe9;--pine:#123a32;--pine-2:#1c4b41;
   --marigold:#d9930d;--marigold-l:#fdf1d7;--marigold-d:#8a5c00;--rose:#b83a4b;--rose-l:#fbe7ea;--sky-l:#e2edf7;--sky-d:#265c8c;
-  --r:10px;--font:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --r:10px;--font:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--display:"Sora","Plus Jakarta Sans",system-ui,sans-serif;
 }
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 var(--font);font-variant-numeric:tabular-nums}
 h1,h2,h3,p{margin:0}
-h1{font-size:26px;line-height:1.2;font-weight:800;letter-spacing:-.02em}
-h2{font-size:16px;line-height:1.3;font-weight:700}
+h1{font-family:var(--display);font-size:26px;line-height:1.25;font-weight:600;letter-spacing:-.02em}
+h2{font-family:var(--display);font-size:16px;line-height:1.35;font-weight:600;letter-spacing:-.005em}
 button,input,select,textarea{font:inherit;color:inherit}
 a{color:var(--jade)}
 :focus-visible{outline:2px solid var(--marigold);outline-offset:2px}
@@ -39,16 +39,16 @@ a{color:var(--jade)}
 
 /* Tata letak utama */
 .shell{display:grid;grid-template-columns:268px minmax(0,1fr);min-height:100vh}
-.side{background:var(--pine);color:#e4eeea;position:sticky;top:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;z-index:40}
+.side{background:var(--pine);color:rgba(255,255,255,.92);position:sticky;top:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;z-index:40}
 .brand{display:flex;gap:11px;align-items:center;padding:20px 18px 16px}
 .brand img{width:40px;height:40px;border-radius:9px;background:#fff;object-fit:contain}
-.brand b{display:block;font-size:15px;line-height:1.25;color:#fff}
-.brand span{font-size:12px;color:#a9c3bb}
+.brand b{display:block;font-family:var(--display);font-size:18px;font-weight:600;line-height:1.25;letter-spacing:-.01em;color:#fff}
+.brand span{font-size:12px;color:rgba(255,255,255,.68)}
 .logos{display:flex;gap:6px;flex:none}
 .brand.multi{flex-direction:column;align-items:flex-start}
 .nav{padding:4px 10px 16px;flex:1}
 .grp{margin-bottom:2px}
-.grp-h{width:100%;display:flex;align-items:center;gap:10px;min-height:44px;padding:8px 10px;background:none;border:0;border-radius:8px;color:#e4eeea;font-weight:600;font-size:14px;cursor:pointer;text-align:left}
+.grp-h{width:100%;display:flex;align-items:center;gap:10px;min-height:44px;padding:8px 10px;background:none;border:0;border-radius:8px;color:rgba(255,255,255,.92);font-weight:600;font-size:14px;cursor:pointer;text-align:left}
 .grp-h:hover{background:var(--pine-2)}
 .grp-h .lbl{flex:1}
 .grp-h .chev{transition:transform .18s}
@@ -57,13 +57,13 @@ a{color:var(--jade)}
 .grp.open .subs{grid-template-rows:1fr}
 .subs>div{overflow:hidden;visibility:hidden}
 .grp.open .subs>div{visibility:visible}
-.sub{display:block;margin:1px 0 1px 28px;padding:8px 10px;border-radius:7px;border-left:2px solid transparent;color:#bcd2cb;text-decoration:none;font-size:14px}
+.sub{display:block;margin:1px 0 1px 28px;padding:8px 10px;border-radius:7px;border-left:2px solid transparent;color:rgba(255,255,255,.76);text-decoration:none;font-size:14px}
 .sub:hover{background:var(--pine-2);color:#fff}
 .sub.on{background:var(--pine-2);color:#fff;font-weight:700;border-left-color:var(--marigold)}
 .me{border-top:1px solid var(--pine-2);padding:14px 16px;font-size:13px}
 .me b{display:block;color:#fff;overflow-wrap:anywhere}
-.me span{color:#a9c3bb}
-.me button{margin-top:9px;width:100%;background:none;color:#e4eeea;border-color:#3b665b}
+.me span{color:rgba(255,255,255,.68)}
+.me button{margin-top:7px;width:100%;background:none;color:rgba(255,255,255,.92);border-color:rgba(255,255,255,.28)}
 .me button:hover{color:#fff;border-color:#fff}
 .main{min-width:0;display:flex;flex-direction:column}
 .topbar{display:none;align-items:center;gap:10px;padding:10px 16px;background:var(--pine);color:#fff;position:sticky;top:0;z-index:30}
@@ -123,7 +123,7 @@ td.num,th.num{text-align:right}
 .legend{display:flex;flex-wrap:wrap;gap:16px;font-size:13px;color:var(--ink-2)}
 .legend span{display:inline-flex;gap:6px;align-items:center}
 .legend .punch{grid-template-columns:15px}
-.sisa{font-size:20px;font-weight:800}
+.sisa{font-family:var(--display);font-size:20px;font-weight:600}
 .sisa.low{color:var(--rose)}
 
 /* Dashboard */
@@ -131,8 +131,8 @@ td.num,th.num{text-align:right}
 .today a{display:block;padding:18px 20px;color:inherit;text-decoration:none;border-right:1px solid var(--pine-2)}
 .today a:last-child{border:0}
 .today a:hover{background:var(--pine-2)}
-.today b{display:block;font-size:34px;line-height:1.1;font-weight:800;letter-spacing:-.02em}
-.today span{font-size:13px;color:#bcd2cb}
+.today b{display:block;font-family:var(--display);font-size:32px;line-height:1.15;font-weight:600;letter-spacing:-.02em}
+.today span{font-size:13px;color:rgba(255,255,255,.76)}
 .today .hot b{color:#f7c35b}
 .grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
 .row-i{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 18px;border-bottom:1px solid var(--line-2)}
@@ -191,15 +191,17 @@ dialog::backdrop{background:rgba(14,40,34,.55)}
 /* Masuk */
 .login{min-height:100vh;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);background:var(--pine)}
 .login-art{color:#fff;padding:56px;display:flex;flex-direction:column;justify-content:space-between;gap:40px}
-.login-art h1{font-size:clamp(32px,4.2vw,54px);max-width:12em;line-height:1.08;margin-top:40px}
+.login-art h1{font-size:clamp(32px,3.7vw,50px);max-width:14em;line-height:1.16;margin-top:40px}
+.login-art p{font-size:clamp(16px,1.35vw,19px);line-height:1.6;max-width:32em;margin-top:18px;color:rgba(255,255,255,.82)}
+.login-art .brand b{font-size:clamp(21px,2vw,28px)}
 .login-art .brand{padding:0}
 .login-art .brand img{width:52px;height:52px}
 .big-punch{display:grid;grid-template-columns:repeat(12,minmax(0,34px));gap:10px}
-.big-punch i{aspect-ratio:1;border-radius:50%;border:2px solid #4d7a6e}
-.big-punch i.f{background:#f0b23a;border-color:#f0b23a}
+.big-punch i{aspect-ratio:1;border-radius:50%;border:2px solid rgba(255,255,255,.3)}
+.big-punch i.f{background:var(--marigold);border-color:var(--marigold)}
 .login-box{background:var(--bg);display:flex;align-items:center;justify-content:center;padding:32px 20px}
 .login-card{width:min(420px,100%)}
-.login-card h2{font-size:24px;font-weight:800;margin-bottom:4px}
+.login-card h2{font-size:24px;margin-bottom:4px}
 .login-card form{display:grid;gap:13px;margin-top:18px}
 .link{background:none;border:0;padding:0;color:var(--jade);font-weight:600;cursor:pointer;font-size:14px;text-decoration:underline}
 .demo-b{display:grid;gap:9px;margin-top:18px}
@@ -211,6 +213,13 @@ details.setup summary{cursor:pointer;font-weight:700;padding:12px 0}
 details.setup ol{padding-left:20px;margin:0 0 12px}
 details.setup li{margin-bottom:6px}
 
+.themes{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:9px}
+.theme{display:flex;align-items:center;gap:10px;padding:10px 11px;border:1.5px solid var(--line);border-radius:9px;background:#fff;cursor:pointer;font-weight:600;font-size:14px;text-align:left}
+.theme:hover{border-color:var(--jade)}
+.theme[aria-pressed=true]{border-color:var(--jade);background:var(--jade-l)}
+.theme .sw{display:flex;flex:none}
+.theme .sw i{width:18px;height:18px;border-radius:50%;border:2px solid #fff;margin-left:-6px}
+.theme .sw i:first-child{margin-left:0}
 #toasts{position:fixed;right:16px;bottom:16px;display:grid;gap:8px;z-index:100;max-width:min(380px,calc(100vw - 32px))}
 .toast{background:var(--ink);color:#fff;padding:11px 15px;border-radius:9px;font-weight:600;font-size:14px;box-shadow:0 8px 20px rgba(0,0,0,.25)}
 .toast.bad{background:var(--rose)}
@@ -224,7 +233,7 @@ details.setup li{margin-bottom:6px}
   body.nav-open .scrim{display:block;position:fixed;inset:0;background:rgba(14,40,34,.5);z-index:35}
   .topbar{display:flex}
   .content{padding:20px 16px 40px}.demo-note{padding:8px 16px}
-  .login{grid-template-columns:1fr}.login-art{padding:28px 20px;gap:12px}.login-art h1{margin-top:16px}.big-punch{display:none}
+  .login{grid-template-columns:1fr}.login-art{padding:28px 20px;gap:12px}.login-art h1{margin-top:16px;font-size:27px}.login-art p{margin-top:10px}.big-punch{display:none}
 }
 @media (max-width:720px){
   h1{font-size:22px}
@@ -470,6 +479,29 @@ const JENIS_KARYAWAN = ['Tetap','Kontrak','Magang','Harian'];
 const STATUS_CUTI = ['Menunggu','Disetujui','Ditolak'];
 const BULAN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 const ROLE_LABEL = {admin:'Admin HR',staff:'Staff HR',karyawan:'Karyawan',pending:'Menunggu akses'};
+
+/* ---------- Tema warna ---------- */
+const THEMES=[
+  ['giok','Hijau Giok','#123a32','#1c4b41','#0f6b5c','#0a5346','#dcefe9','#d9930d','#eef3f1'],
+  ['laut','Biru Laut','#10304f','#1a4268','#1a5f9e','#134a7c','#deebf7','#e0a100','#eef2f7'],
+  ['navy','Biru Navy','#141f42','#222f5a','#2c4aa0','#213a80','#e2e7f6','#f0a92e','#eff1f7'],
+  ['langit','Biru Langit','#0c3b53','#154f6d','#0b7099','#085a7b','#d9eef6','#f2a33a','#edf4f7'],
+  ['toska','Toska','#0d3b3f','#174f54','#0b7a78','#075f5e','#d8f0ee','#e8913a','#ecf4f3'],
+  ['zaitun','Hijau Zaitun','#2c3a1c','#3c4d28','#56752b','#435c20','#e7efd9','#c98a12','#f1f3ea'],
+  ['marun','Merah Marun','#451420','#5b1f2e','#9a2a3f','#7d2033','#f7e1e5','#d9930d','#f6eff0'],
+  ['bata','Merah Bata','#46201a','#5c2d25','#ab4228','#8a341f','#f8e5df','#e0a100','#f6f0ed'],
+  ['mawar','Merah Mawar','#4a1534','#612145','#ad2c6e','#8d2158','#f9e1ee','#e29a1f','#f7eff3'],
+  ['ungu','Ungu','#2d1b4e','#3e2a66','#6a3fb0','#55308f','#ebe3f7','#e6a42a','#f3f0f8'],
+  ['kopi','Cokelat Kopi','#33241b','#463327','#7c5433','#624127','#f0e6dc','#d9930d','#f4f0eb'],
+  ['grafit','Abu Grafit','#23292f','#333b43','#4a5661','#39434d','#e6e9ec','#e0a100','#f0f2f3']
+].map(a=>({id:a[0],nama:a[1],pine:a[2],pine2:a[3],jade:a[4],jadeD:a[5],jadeL:a[6],accent:a[7],bg:a[8]}));
+function applyTheme(id){
+  const t=THEMES.find(x=>x.id===id)||THEMES[0],r=document.documentElement.style;
+  [['--pine',t.pine],['--pine-2',t.pine2],['--jade',t.jade],['--jade-d',t.jadeD],['--jade-l',t.jadeL],['--marigold',t.accent],['--bg',t.bg]].forEach(([k,v])=>r.setProperty(k,v));
+  return t.id;
+}
+let themeNow=THEMES[0].id;
+try{themeNow=applyTheme(localStorage.getItem('hr_tema'));}catch(e){}
 
 /* ---------- Utilitas ---------- */
 const $ = (s,r=document)=>r.querySelector(s);
@@ -1108,6 +1140,8 @@ const ACT={
     openModal(`<div class="m-h"><h2>Karyawan shift ${esc(r.nama)}</h2>${closeBtn}</div><div class="m-b"><div id="merr"></div><div class="check-list">${list.map(k=>`<label><input type="checkbox" value="${k.id}" ${k.shift_id===r.id?'checked':''}><span>${esc(k.nama)}<span class="sub-t">${esc(k.departemen)}${shiftOf(k.shift_id)&&k.shift_id!==r.id?', saat ini '+esc(shiftOf(k.shift_id).nama):''}</span></span></label>`).join('')}</div></div><div class="m-f"><button class="btn" data-act="m-close">Batal</button><button class="btn primary" id="m-ok">Simpan</button></div>`);
     $('#m-ok').onclick=async()=>{const on=$$('.check-list input').filter(x=>x.checked).map(x=>x.value),off=list.filter(k=>k.shift_id===r.id&&!on.includes(k.id)).map(k=>k.id);try{if(on.length)await Api.update('karyawan',on,{shift_id:r.id});if(off.length)await Api.update('karyawan',off,{shift_id:null});M().close();await reload();render();toast('Karyawan shift diperbarui.');}catch(e){$('#merr').innerHTML=`<div class="err">${esc(friendly(e))}</div>`;}};},
   'role-set'(el){const r=find('profil',el.dataset.id);formModal({title:'Ubah peran',intro:r.email,fields:[{k:'role',l:'Peran',type:'select',full:1,opts:Object.entries(ROLE_LABEL).map(([v,t])=>({v,t}))}],values:r,onSubmit:async v=>{await Api.update('profil',[r.id],{role:v.role});return 'Peran diperbarui.';}});},
+  'theme-open'(){openModal(`<div class="m-h"><h2>Tema warna</h2>${closeBtn}</div><div class="m-b"><p class="muted" style="margin-bottom:12px">Pilih warna tampilan. Pilihan langsung diterapkan dan tersimpan di perangkat ini.</p><div class="themes">${THEMES.map(t=>`<button class="theme" data-act="theme-set" data-id="${t.id}" aria-pressed="${t.id===themeNow}"><span class="sw"><i style="background:${t.pine}"></i><i style="background:${t.jade}"></i><i style="background:${t.accent}"></i></span>${esc(t.nama)}</button>`).join('')}</div></div>`);},
+  'theme-set'(el){themeNow=applyTheme(el.dataset.id);try{localStorage.setItem('hr_tema',themeNow);}catch(e){}$$('.theme').forEach(b=>b.setAttribute('aria-pressed',b===el));},
   'pw-change'(){formModal({title:'Ubah kata sandi',fields:[{k:'password',l:'Kata sandi baru',type:'password',req:1,full:1,help:'Minimal 8 karakter.'}],submit:'Simpan kata sandi',onSubmit:async v=>{if(v.password.length<8)throw new Error('Kata sandi minimal 8 karakter.');await Api.updatePw(v.password);return 'Kata sandi diperbarui.';}});},
   'logo-reset':async el=>{try{const k=el.dataset.k;await Api.saveSettings({[k]:''});S.settings[k]='';render();toast('Logo dihapus.');}catch(e){toast(friendly(e),1);}}
 };
@@ -1135,7 +1169,7 @@ function render(){
   const portal={admin:'Dashboard Admin HR',staff:'Portal Staff HR',karyawan:'Portal Karyawan'}[role];
   $('#app').innerHTML=`<div class="shell"><aside class="side" aria-label="Menu utama"><div class="brand ${logos().length>1?'multi':''}">${logoImgs()}<div><b>${esc(S.settings.perusahaan)}</b><span>${portal}</span></div></div>
   <nav class="nav">${NAV[role].map(x=>`<div class="grp ${S.open.has(x.g)?'open':''}" data-g="${esc(x.g)}"><button class="grp-h" data-act="grp" aria-expanded="${S.open.has(x.g)}">${icon(IC[x.i])}<span class="lbl">${esc(x.g)}</span>${chev}</button><div class="subs"><div>${x.items.map(i=>`<a class="sub ${i[0]===r?'on':''}" href="#/${i[0]}" ${i[0]===r?'aria-current="page"':''}>${esc(i[1])}</a>`).join('')}</div></div></div>`).join('')}</nav>
-  <div class="me"><b>${esc(S.user.nama||S.user.email)}</b><span>${ROLE_LABEL[role]}</span>${MODE==='cloud'?'<button class="btn sm" data-act="pw-change">Ubah kata sandi</button>':''}<button class="btn sm" data-act="logout">Keluar</button></div></aside>
+  <div class="me"><b>${esc(S.user.nama||S.user.email)}</b><span>${ROLE_LABEL[role]}</span><button class="btn sm" data-act="theme-open">Tema warna</button>${MODE==='cloud'?'<button class="btn sm" data-act="pw-change">Ubah kata sandi</button>':''}<button class="btn sm" data-act="logout">Keluar</button></div></aside>
   <div class="scrim" data-act="nav-close"></div>
   <div class="main"><header class="topbar"><button class="icon-btn" data-act="nav-open" aria-label="Buka menu">${icon(IC.menu,22)}</button><b>${portal}</b></header>${MODE==='demo'?'<div class="demo-note">Mode demo: data contoh hanya tersimpan di browser ini.</div>':''}<main class="content" id="view"></main></div></div>`;
   document.body.classList.remove('nav-open');
@@ -1149,7 +1183,7 @@ async function reload(){
 async function enter(){S.user=await Api.session();if(S.user&&S.user.role!=='pending')await reload();render();}
 
 function loginArt(){let d='';for(let i=0;i<24;i++)d+=`<i class="${[1,2,5,9,10,14,17,20,23].includes(i)?'f':''}"></i>`;
-  return `<div class="login-art"><div><div class="brand">${logoImgs()}<div><b>${esc(S.settings.perusahaan)}</b></div></div><h1>Data karyawan, cuti, dan gaji dalam satu tempat.</h1></div><div class="big-punch" aria-hidden="true">${d}</div></div>`;}
+  return `<div class="login-art"><div><div class="brand">${logoImgs()}<div><b>${esc(S.settings.perusahaan)}</b></div></div><h1>Setiap proyek hebat dimulai dari <span class="nowrap">orang-orangnya.</span></h1><p>Kelola data karyawan, cuti, dan gaji ${esc(S.settings.perusahaan)} dalam satu sistem.</p></div><div class="big-punch" aria-hidden="true">${d}</div></div>`;}
 function renderLogin(){
   let box;
   if(MODE==='demo'){
