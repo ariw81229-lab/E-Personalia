@@ -44,6 +44,8 @@ a{color:var(--jade)}
 .brand img{width:40px;height:40px;border-radius:9px;background:#fff;object-fit:contain}
 .brand b{display:block;font-size:15px;line-height:1.25;color:#fff}
 .brand span{font-size:12px;color:#a9c3bb}
+.logos{display:flex;gap:6px;flex:none}
+.brand.multi{flex-direction:column;align-items:flex-start}
 .nav{padding:4px 10px 16px;flex:1}
 .grp{margin-bottom:2px}
 .grp-h{width:100%;display:flex;align-items:center;gap:10px;min-height:44px;padding:8px 10px;background:none;border:0;border-radius:8px;color:#e4eeea;font-weight:600;font-size:14px;cursor:pointer;text-align:left}
@@ -263,6 +265,8 @@ create table public.pengaturan(
   perusahaan text not null default 'Nama Perusahaan',
   alamat text default '',
   logo text default '',
+  logo2 text default '',
+  logo3 text default '',
   kuota_default int not null default 12
 );
 insert into public.pengaturan(id) values (1);
@@ -456,9 +460,10 @@ insert into public.shift(nama,jam_mulai,jam_selesai,keterangan) values
    Gunakan anon/publishable key, JANGAN service_role key.
    Selama kosong, aplikasi berjalan sebagai mode demo.
    ========================================================== */
-const SUPABASE_URL = 'https://dlgnonsvjayzlrlnfmme.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_mvl0RoHKR7wWDAMc9RATHg_pqz_a4BK';
+const SUPABASE_URL = '';
+const SUPABASE_ANON_KEY = '';
 
+const USERNAME_DOMAIN = 'monitoring.local';
 const MODE = SUPABASE_URL && SUPABASE_ANON_KEY ? 'cloud' : 'demo';
 const JENIS_CUTI = ['Cuti Tahunan','Izin','Sakit','Cuti Melahirkan','Cuti Besar','Cuti Lainnya'];
 const JENIS_KARYAWAN = ['Tetap','Kontrak','Magang','Harian'];
@@ -490,7 +495,7 @@ function friendly(e){
   const c=e&&e.code, m=(e&&e.message)||String(e);
   if(c==='23505') return 'Data sudah ada. Periksa NIK, email, nama, atau periode yang sama.';
   if(c==='42501'||/row-level security/i.test(m)) return 'Akun Anda tidak berhak melakukan tindakan ini.';
-  if(/Invalid login/i.test(m)) return 'Email atau kata sandi salah.';
+  if(/Invalid login/i.test(m)) return 'Username/email atau kata sandi salah.';
   if(/rate limit|security purposes/i.test(m)) return 'Terlalu banyak permintaan email. Tunggu beberapa saat lalu coba lagi.';
   if(/Email not confirmed/i.test(m)) return 'Email belum dikonfirmasi. Buka tautan konfirmasi di kotak masuk Anda.';
   if(/Failed to fetch|NetworkError/i.test(m)) return 'Tidak dapat terhubung ke server. Periksa koneksi internet lalu coba lagi.';
@@ -503,10 +508,12 @@ function defaultLogo(){
   return c.toDataURL('image/png');
 }
 const LOGO_DEFAULT=defaultLogo();
-const logo=()=>S.settings.logo||LOGO_DEFAULT;
+const LOGO_SLOTS=[['logo','Logo 1'],['logo2','Logo 2'],['logo3','Logo 3']];
+const logos=()=>{const a=LOGO_SLOTS.map(x=>S.settings[x[0]]).filter(Boolean);return a.length?a:[LOGO_DEFAULT];};
+const logoImgs=(alt='')=>`<span class="logos">${logos().map(l=>`<img src="${l}" alt="${alt}">`).join('')}</span>`;
 
 /* ---------- Status aplikasi ---------- */
-const S={user:null,settings:{perusahaan:'Nama Perusahaan',alamat:'',logo:'',kuota_default:12},
+const S={user:null,settings:{perusahaan:'Nama Perusahaan',alamat:'',logo:'',logo2:'',logo3:'',kuota_default:12},
   d:{karyawan:[],shift:[],cuti:[],slip_gaji:[],profil:[],log_aktivitas:[]},route:'',open:new Set(),authMode:'masuk',booted:false};
 const F={};
 
@@ -655,21 +662,23 @@ const XL_MONEY='"Rp" #,##0;[Red]-"Rp" #,##0';
 function cellOut(c,r){const v=c.v(r);if(c.t==='date'){if(!v)return '';const[y,m,d]=v.slice(0,10).split('-').map(Number);return new Date(Date.UTC(y,m-1,d));}if(c.t==='money'||c.t==='num')return num(v);return v==null?'':String(v);}
 function colLen(c,r){const v=c.v(r);if(c.t==='date')return 12;if(c.t==='money')return rupiah(v).length+1;return String(v??'').length;}
 async function headerXl(wb,ws,title,sub,lastCol){
-  const id=wb.addImage({base64:b64(logo()),extension:'png'});
-  ws.addImage(id,{tl:{col:.15,row:.15},ext:{width:58,height:58}});
+  const colPx=c=>(ws.getColumn(c).width||9)*7+5, list=logos();
+  const anchor=px=>{let c=1;while(px>=colPx(c)&&c<lastCol+6){px-=colPx(c);c++;}return {nativeCol:c-1,nativeColOff:Math.round(px*9525),nativeRow:0,nativeRowOff:19050};};
+  list.forEach((l,i)=>{const id=wb.addImage({base64:b64(l),extension:'png'});ws.addImage(id,{tl:anchor(6+i*62),ext:{width:58,height:58}});});
+  const need=6+list.length*62;let start=1,left=0;while(left<need&&start<lastCol){left+=colPx(start);start++;}
   [[1,S.settings.perusahaan,{bold:true,size:12,color:{argb:'FF16302B'}}],[2,title,{bold:true,size:16,color:{argb:'FF0F6B5C'}}],[3,sub,{size:10,color:{argb:'FF4B625C'}}]].forEach(([r,t,font])=>{
-    ws.mergeCells(r,3,r,Math.max(lastCol,3));const c=ws.getCell(r,3);c.value=t;c.font=font;c.alignment={vertical:'middle'};ws.getRow(r).height=r===2?24:18;});
+    if(lastCol>start)ws.mergeCells(r,start,r,lastCol);const c=ws.getCell(r,start);c.value=t;c.font=font;c.alignment={vertical:'middle'};ws.getRow(r).height=r===2?24:18;});
 }
 async function exportExcel({title,subtitle,cols,rows,total}){
   if(!window.ExcelJS) throw new Error('Pustaka Excel gagal dimuat. Periksa koneksi internet.');
   const wb=new ExcelJS.Workbook();wb.creator=S.settings.perusahaan;
   const ws=wb.addWorksheet(title.replace(/[\\/?*[\]:]/g,'-').slice(0,31),{views:[{state:'frozen',ySplit:5,showGridLines:false}],pageSetup:{paperSize:9,orientation:cols.length>5?'landscape':'portrait',fitToPage:true,fitToWidth:1,fitToHeight:0,printTitlesRow:'5:5',margins:{left:.4,right:.4,top:.5,bottom:.5,header:.2,footer:.2}},headerFooter:{oddFooter:'&LMonitoring Karyawan&RHalaman &P dari &N'}});
   const all=[{l:'No',t:'no',v:(r,i)=>i+1},...cols];
-  await headerXl(wb,ws,title,`${subtitle?subtitle+'   |   ':''}${printedAt()}   |   ${rows.length} baris`,all.length);
   const thin={style:'thin',color:{argb:'FFC9D6D1'}},border={top:thin,left:thin,bottom:thin,right:thin};
   const h=ws.getRow(5);h.height=26;
   all.forEach((c,i)=>{const cell=h.getCell(i+1);cell.value=c.l;cell.font={bold:true,color:{argb:'FFFFFFFF'}};cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF0F6B5C'}};cell.alignment={vertical:'middle',horizontal:'center',wrapText:true};cell.border=border;
     const w=c.t==='no'?7:Math.min(44,Math.max(c.l.length+3,...rows.slice(0,2000).map(r=>colLen(c,r)+3),c.t==='date'?13:8));ws.getColumn(i+1).width=w;});
+  await headerXl(wb,ws,title,`${subtitle?subtitle+'   |   ':''}${printedAt()}   |   ${rows.length} baris`,all.length);
   rows.forEach((r,ri)=>{const row=ws.getRow(6+ri);all.forEach((c,i)=>{const cell=row.getCell(i+1);cell.value=c.t==='no'?ri+1:cellOut(c,r);cell.border=border;cell.alignment={vertical:'top',wrapText:c.t!=='money'&&c.t!=='date',horizontal:c.t==='no'?'center':(c.t==='date'?'center':undefined)};
     if(c.t==='money')cell.numFmt=XL_MONEY;if(c.t==='date')cell.numFmt='dd/mm/yyyy';if(ri%2)cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFF4F8F6'}};});});
   if(total&&rows.length){const row=ws.getRow(6+rows.length);all.forEach((c,i)=>{const cell=row.getCell(i+1);cell.border=border;cell.font={bold:true};cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFDCEFE9'}};
@@ -679,10 +688,11 @@ async function exportExcel({title,subtitle,cols,rows,total}){
 }
 function pdfHeader(doc,title,sub){
   const W=doc.internal.pageSize.getWidth();
-  doc.addImage(logo(),'PNG',14,9,17,17);
-  doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(22,48,43);doc.text(S.settings.perusahaan,35,13);
-  doc.setFontSize(15);doc.setTextColor(15,107,92);doc.text(title,35,20);
-  doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(75,98,92);doc.text(sub,35,25);
+  const L=logos(),tx=14+L.length*19+2;
+  L.forEach((l,i)=>doc.addImage(l,'PNG',14+i*19,9,17,17));
+  doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(22,48,43);doc.text(S.settings.perusahaan,tx,13);
+  doc.setFontSize(15);doc.setTextColor(15,107,92);doc.text(title,tx,20);
+  doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(75,98,92);doc.text(sub,tx,25);
   doc.setDrawColor(15,107,92);doc.setLineWidth(.5);doc.line(14,29,W-14,29);
 }
 function pdfFooters(doc){const n=doc.internal.getNumberOfPages(),W=doc.internal.pageSize.getWidth(),H=doc.internal.pageSize.getHeight();
@@ -1053,7 +1063,7 @@ const slipFields=edit=>[{k:'karyawan_id',l:'Karyawan',type:'select',req:1,blank:
 const shiftFields=()=>[{k:'nama',l:'Nama shift',req:1,full:1},{k:'jam_mulai',l:'Jam mulai',type:'time',req:1},{k:'jam_selesai',l:'Jam selesai',type:'time',req:1},{k:'keterangan',l:'Keterangan',full:1}];
 function slipModal(s){
   const k=emp(s.karyawan_id),L=slipLines(s),line=x=>`<div class="slip-l"><span>${esc(x[0])}</span><span>${rupiah(x[1])}</span></div>`,sum=a=>a.reduce((t,x)=>t+num(x[1]),0);
-  openModal(`<div class="m-h"><h2>Slip gaji</h2>${closeBtn}</div><div class="m-b"><div class="slip-head"><img src="${logo()}" alt="Logo"><div><b>${esc(S.settings.perusahaan)}</b><div class="muted small">Slip gaji ${fmtPeriod(s.periode)}</div></div></div>
+  openModal(`<div class="m-h"><h2>Slip gaji</h2>${closeBtn}</div><div class="m-b"><div class="slip-head">${logoImgs('Logo')}<div><b>${esc(S.settings.perusahaan)}</b><div class="muted small">Slip gaji ${fmtPeriod(s.periode)}</div></div></div>
   <div class="slip-meta"><div><span class="muted">Nama:</span> <b>${esc(k.nama)}</b></div><div><span class="muted">NIK:</span> ${esc(k.nik)}</div><div><span class="muted">Jabatan:</span> ${esc(k.jabatan||'-')}</div><div><span class="muted">Departemen:</span> ${esc(k.departemen||'-')}</div></div>
   <div class="slip-cols"><div><h3>Pendapatan</h3>${L.plus.map(line).join('')}<div class="slip-l t"><span>Total</span><span>${rupiah(sum(L.plus))}</span></div></div><div><h3>Potongan</h3>${L.minus.map(line).join('')}<div class="slip-l t"><span>Total</span><span>${rupiah(sum(L.minus))}</span></div></div></div>
   <div class="slip-net"><span>Gaji bersih diterima</span><b>${rupiah(net(s))}</b></div>${s.catatan?`<p class="muted small" style="margin-top:9px">Catatan: ${esc(s.catatan)}</p>`:''}</div>
@@ -1098,7 +1108,8 @@ const ACT={
     openModal(`<div class="m-h"><h2>Karyawan shift ${esc(r.nama)}</h2>${closeBtn}</div><div class="m-b"><div id="merr"></div><div class="check-list">${list.map(k=>`<label><input type="checkbox" value="${k.id}" ${k.shift_id===r.id?'checked':''}><span>${esc(k.nama)}<span class="sub-t">${esc(k.departemen)}${shiftOf(k.shift_id)&&k.shift_id!==r.id?', saat ini '+esc(shiftOf(k.shift_id).nama):''}</span></span></label>`).join('')}</div></div><div class="m-f"><button class="btn" data-act="m-close">Batal</button><button class="btn primary" id="m-ok">Simpan</button></div>`);
     $('#m-ok').onclick=async()=>{const on=$$('.check-list input').filter(x=>x.checked).map(x=>x.value),off=list.filter(k=>k.shift_id===r.id&&!on.includes(k.id)).map(k=>k.id);try{if(on.length)await Api.update('karyawan',on,{shift_id:r.id});if(off.length)await Api.update('karyawan',off,{shift_id:null});M().close();await reload();render();toast('Karyawan shift diperbarui.');}catch(e){$('#merr').innerHTML=`<div class="err">${esc(friendly(e))}</div>`;}};},
   'role-set'(el){const r=find('profil',el.dataset.id);formModal({title:'Ubah peran',intro:r.email,fields:[{k:'role',l:'Peran',type:'select',full:1,opts:Object.entries(ROLE_LABEL).map(([v,t])=>({v,t}))}],values:r,onSubmit:async v=>{await Api.update('profil',[r.id],{role:v.role});return 'Peran diperbarui.';}});},
-  'logo-reset':async()=>{await Api.saveSettings({logo:''});S.settings.logo='';render();toast('Logo standar dipakai kembali.');}
+  'pw-change'(){formModal({title:'Ubah kata sandi',fields:[{k:'password',l:'Kata sandi baru',type:'password',req:1,full:1,help:'Minimal 8 karakter.'}],submit:'Simpan kata sandi',onSubmit:async v=>{if(v.password.length<8)throw new Error('Kata sandi minimal 8 karakter.');await Api.updatePw(v.password);return 'Kata sandi diperbarui.';}});},
+  'logo-reset':async el=>{try{const k=el.dataset.k;await Api.saveSettings({[k]:''});S.settings[k]='';render();toast('Logo dihapus.');}catch(e){toast(friendly(e),1);}}
 };
 function closeDd(){$$('.dd.open').forEach(d=>{d.classList.remove('open');$('[data-act=dd]',d).setAttribute('aria-expanded','false');});}
 
@@ -1106,9 +1117,9 @@ function renderPerusahaan(){
   const s=S.settings;
   $('#view').innerHTML=`<div class="page-h"><div><h1>Perusahaan & Logo</h1><p>Nama dan logo ini tampil di aplikasi serta semua hasil unduhan Excel dan PDF.</p></div></div>
   <div class="grid2"><section class="panel"><div class="panel-h"><h2>Profil perusahaan</h2></div><div class="panel-b"><form id="set-f" class="form"><label class="fld full">Nama perusahaan<input name="perusahaan" required value="${esc(s.perusahaan)}"></label><label class="fld full">Alamat<input name="alamat" value="${esc(s.alamat||'')}"></label><label class="fld full">Kuota cuti standar untuk karyawan baru<input name="kuota_default" type="number" min="0" step="1" required value="${esc(s.kuota_default)}"></label><div class="full"><button class="btn primary">Simpan perubahan</button></div></form></div></section>
-  <section class="panel"><div class="panel-h"><h2>Logo</h2></div><div class="panel-b"><div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap"><img src="${logo()}" alt="Logo saat ini" style="width:88px;height:88px;object-fit:contain;border:1px solid var(--line);border-radius:10px"><div style="display:grid;gap:8px"><label class="btn primary">Unggah logo<input type="file" id="logo-f" accept="image/png,image/jpeg,image/webp" style="display:none"></label>${s.logo?'<button class="btn" data-act="logo-reset">Pakai logo standar</button>':''}</div></div><p class="muted small" style="margin-top:10px">PNG atau JPG, disarankan persegi.</p></div></section></div>`;
+  <section class="panel"><div class="panel-h"><h2>Logo</h2></div><div class="panel-b" style="display:grid;gap:14px">${LOGO_SLOTS.map(([k,l])=>`<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap"><div style="width:72px;height:72px;border:1px solid var(--line);border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--ink-3);font-size:12px;flex:none">${s[k]?`<img src="${s[k]}" alt="${l}" style="width:64px;height:64px;object-fit:contain">`:'Kosong'}</div><div><b>${l}</b><div class="tools" style="margin-top:5px"><label class="btn sm primary">Unggah<input type="file" class="logo-f" data-k="${k}" accept="image/png,image/jpeg,image/webp" style="display:none"></label>${s[k]?`<button class="btn sm" data-act="logo-reset" data-k="${k}">Hapus</button>`:''}</div></div></div>`).join('')}<p class="muted small">PNG atau JPG, disarankan persegi. Logo yang diunggah tampil berurutan di aplikasi dan hasil unduhan.</p></div></section></div>`;
   $('#set-f').onsubmit=async e=>{e.preventDefault();const v=Object.fromEntries(new FormData(e.target).entries());v.kuota_default=+v.kuota_default;try{await Api.saveSettings(v);Object.assign(S.settings,v);render();toast('Profil perusahaan disimpan.');}catch(x){toast(friendly(x),1);}};
-  $('#logo-f').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const url=await normLogo(f);await Api.saveSettings({logo:url});S.settings.logo=url;render();toast('Logo disimpan.');}catch(x){toast(friendly(x),1);}};
+  $$('.logo-f').forEach(inp=>inp.onchange=async e=>{const f=e.target.files[0],k=e.target.dataset.k;if(!f)return;try{const url=await normLogo(f);await Api.saveSettings({[k]:url});S.settings[k]=url;render();toast('Logo disimpan.');}catch(x){toast(friendly(x),1);}});
 }
 function normLogo(file){return new Promise((res,rej)=>{if(file.size>5e6)return rej(new Error('Ukuran logo maksimal 5 MB.'));const u=URL.createObjectURL(file),i=new Image();i.onload=()=>{const c=document.createElement('canvas');c.width=c.height=240;const r=Math.min(240/i.width,240/i.height),w=i.width*r,h=i.height*r;c.getContext('2d').drawImage(i,(240-w)/2,(240-h)/2,w,h);URL.revokeObjectURL(u);res(c.toDataURL('image/png'));};i.onerror=()=>rej(new Error('File logo tidak dapat dibaca.'));i.src=u;});}
 
@@ -1122,9 +1133,9 @@ function render(){
   const rs=routesFor(role);let r=(location.hash||'').replace(/^#\/?/,'');if(!rs.includes(r))r=rs[0];S.route=r;
   const g=NAV[role].find(x=>x.items.some(i=>i[0]===r));S.open.add(g.g);
   const portal={admin:'Dashboard Admin HR',staff:'Portal Staff HR',karyawan:'Portal Karyawan'}[role];
-  $('#app').innerHTML=`<div class="shell"><aside class="side" aria-label="Menu utama"><div class="brand"><img src="${logo()}" alt=""><div><b>${esc(S.settings.perusahaan)}</b><span>${portal}</span></div></div>
+  $('#app').innerHTML=`<div class="shell"><aside class="side" aria-label="Menu utama"><div class="brand ${logos().length>1?'multi':''}">${logoImgs()}<div><b>${esc(S.settings.perusahaan)}</b><span>${portal}</span></div></div>
   <nav class="nav">${NAV[role].map(x=>`<div class="grp ${S.open.has(x.g)?'open':''}" data-g="${esc(x.g)}"><button class="grp-h" data-act="grp" aria-expanded="${S.open.has(x.g)}">${icon(IC[x.i])}<span class="lbl">${esc(x.g)}</span>${chev}</button><div class="subs"><div>${x.items.map(i=>`<a class="sub ${i[0]===r?'on':''}" href="#/${i[0]}" ${i[0]===r?'aria-current="page"':''}>${esc(i[1])}</a>`).join('')}</div></div></div>`).join('')}</nav>
-  <div class="me"><b>${esc(S.user.nama||S.user.email)}</b><span>${ROLE_LABEL[role]}</span><button class="btn sm" data-act="logout">Keluar</button></div></aside>
+  <div class="me"><b>${esc(S.user.nama||S.user.email)}</b><span>${ROLE_LABEL[role]}</span>${MODE==='cloud'?'<button class="btn sm" data-act="pw-change">Ubah kata sandi</button>':''}<button class="btn sm" data-act="logout">Keluar</button></div></aside>
   <div class="scrim" data-act="nav-close"></div>
   <div class="main"><header class="topbar"><button class="icon-btn" data-act="nav-open" aria-label="Buka menu">${icon(IC.menu,22)}</button><b>${portal}</b></header>${MODE==='demo'?'<div class="demo-note">Mode demo: data contoh hanya tersimpan di browser ini.</div>':''}<main class="content" id="view"></main></div></div>`;
   document.body.classList.remove('nav-open');
@@ -1138,7 +1149,7 @@ async function reload(){
 async function enter(){S.user=await Api.session();if(S.user&&S.user.role!=='pending')await reload();render();}
 
 function loginArt(){let d='';for(let i=0;i<24;i++)d+=`<i class="${[1,2,5,9,10,14,17,20,23].includes(i)?'f':''}"></i>`;
-  return `<div class="login-art"><div><div class="brand"><img src="${logo()}" alt=""><div><b>${esc(S.settings.perusahaan)}</b></div></div><h1>Data karyawan, cuti, dan gaji dalam satu tempat.</h1></div><div class="big-punch" aria-hidden="true">${d}</div></div>`;}
+  return `<div class="login-art"><div><div class="brand">${logoImgs()}<div><b>${esc(S.settings.perusahaan)}</b></div></div><h1>Data karyawan, cuti, dan gaji dalam satu tempat.</h1></div><div class="big-punch" aria-hidden="true">${d}</div></div>`;}
 function renderLogin(){
   let box;
   if(MODE==='demo'){
@@ -1147,17 +1158,17 @@ function renderLogin(){
     <details class="setup"><summary>Cara menghubungkan ke Supabase</summary><ol><li>Buat proyek di Supabase, buka SQL Editor, tempel SQL di bawah, lalu jalankan.</li><li>Di Authentication, pastikan Confirm email aktif. Isi Site URL dengan alamat Vercel Anda.</li><li>Isi <code>SUPABASE_URL</code> dan <code>SUPABASE_ANON_KEY</code> di index.html, unggah ke GitHub, lalu impor repositori ke Vercel.</li><li>Daftar lewat website, lalu jalankan perintah terakhir pada SQL untuk menjadikan akun Anda Admin HR.</li></ol><button class="btn sm" id="copy-sql" style="margin-bottom:14px">Salin SQL</button></details>`;
   }else{
     const m=S.authMode;
-    box=`<h2>${{masuk:'Masuk',daftar:'Daftar akun',lupa:'Atur ulang kata sandi',ulang:'Kirim ulang konfirmasi'}[m]}</h2><p class="muted">${{masuk:'Gunakan email dan kata sandi Anda.',daftar:'Karyawan memakai email yang terdaftar di HR.',lupa:'Tautan pengaturan ulang dikirim ke email Anda.',ulang:'Tautan konfirmasi baru dikirim ke email pendaftaran Anda.'}[m]}</p>
-    <form id="auth-f" novalidate><div id="auth-err">${S.authNotice?`<div class="err">${esc(S.authNotice)}</div>`:''}</div>${m==='daftar'?'<label class="fld">Nama lengkap<input name="nama" required autocomplete="name"></label>':''}<label class="fld">Email<input name="email" type="email" required autocomplete="email"></label>${m==='masuk'||m==='daftar'?`<label class="fld">Kata sandi<input name="password" type="password" required minlength="8" autocomplete="${m==='masuk'?'current-password':'new-password'}">${m==='daftar'?'<span class="help">Minimal 8 karakter.</span>':''}</label>`:''}<button class="btn primary" type="submit">${{masuk:'Masuk',daftar:'Daftar',lupa:'Kirim tautan',ulang:'Kirim ulang tautan'}[m]}</button></form>
+    box=`<h2>${{masuk:'Masuk',daftar:'Daftar akun',lupa:'Atur ulang kata sandi',ulang:'Kirim ulang konfirmasi'}[m]}</h2><p class="muted">${{masuk:'Gunakan username atau email dan kata sandi Anda.',daftar:'Karyawan memakai email yang terdaftar di HR.',lupa:'Tautan pengaturan ulang dikirim ke email Anda.',ulang:'Tautan konfirmasi baru dikirim ke email pendaftaran Anda.'}[m]}</p>
+    <form id="auth-f" novalidate><div id="auth-err">${S.authNotice?`<div class="err">${esc(S.authNotice)}</div>`:''}</div>${m==='daftar'?'<label class="fld">Nama lengkap<input name="nama" required autocomplete="name"></label>':''}${m==='masuk'?'<label class="fld">Username atau email<input name="email" type="text" required autocomplete="username" autocapitalize="none" spellcheck="false"></label>':'<label class="fld">Email<input name="email" type="email" required autocomplete="email"></label>'}${m==='masuk'||m==='daftar'?`<label class="fld">Kata sandi<input name="password" type="password" required minlength="8" autocomplete="${m==='masuk'?'current-password':'new-password'}">${m==='daftar'?'<span class="help">Minimal 8 karakter.</span>':''}</label>`:''}<button class="btn primary" type="submit">${{masuk:'Masuk',daftar:'Daftar',lupa:'Kirim tautan',ulang:'Kirim ulang tautan'}[m]}</button></form>
     <p style="margin-top:14px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap">${m!=='masuk'?'<button class="link" data-auth="masuk">Kembali ke Masuk</button>':'<button class="link" data-auth="daftar">Daftar akun</button><button class="link" data-auth="lupa">Lupa kata sandi?</button><button class="link" data-auth="ulang">Kirim ulang email konfirmasi</button>'}</p>`;
   }
   $('#app').innerHTML=`<div class="login">${loginArt()}<div class="login-box"><div class="login-card">${box}</div></div></div>`;
   const f=$('#auth-f');if(f)f.onsubmit=async e=>{e.preventDefault();const err=$('#auth-err'),say=(m,ok)=>err.innerHTML=`<div class="err" ${ok?'style="background:var(--jade-l);color:var(--jade-d)"':''}>${esc(m)}</div>`;
-    if(!f.checkValidity())return say('Lengkapi semua kolom. Email harus valid dan kata sandi minimal 8 karakter.');
+    if(!f.checkValidity())return say('Lengkapi semua kolom dengan benar. Kata sandi minimal 8 karakter.');
     const v=Object.fromEntries(new FormData(f).entries()),b=$('[type=submit]',f);b.disabled=true;
-    try{if(S.authMode==='masuk'){await Api.signIn(v.email,v.password);await enter();}
+    try{if(S.authMode==='masuk'){const id=v.email.trim().toLowerCase();await Api.signIn(id.includes('@')?id:`${id}@${USERNAME_DOMAIN}`,v.password);await enter();}
       else if(S.authMode==='daftar'){const live=await Api.signUp(v.email,v.password,v.nama);if(live)await enter();else{say('Periksa email Anda dan buka tautan konfirmasi untuk mengaktifkan akun.',1);b.disabled=false;}}
-      else if(S.authMode==='ulang'){await Api.resend(v.email);say('Tautan baru terkirim. Buka email terbaru dan klik tautannya satu kali.',1);b.disabled=false;}
+      else if(S.authMode==='ulang'){await Api.resend(v.email);say('Permintaan diterima. Periksa kotak masuk dan folder spam. Bila akun sudah pernah dikonfirmasi, email tidak dikirim lagi dan Anda bisa langsung masuk.',1);b.disabled=false;}
       else{await Api.resetPw(v.email);say('Tautan terkirim bila email tersebut terdaftar.',1);b.disabled=false;}
     }catch(x){say(friendly(x));b.disabled=false;}};
   const c=$('#copy-sql');if(c)c.onclick=async()=>{try{await navigator.clipboard.writeText($('#schema-sql').textContent.trim());toast('SQL disalin.');}catch(e){toast('Gagal menyalin. Salin dari blok schema-sql di index.html.',1);}};
