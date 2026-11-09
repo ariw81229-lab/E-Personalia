@@ -1,0 +1,1193 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Monitoring Karyawan</title>
+<meta name="description" content="Monitoring data karyawan, cuti, kuota, slip gaji, shift, dan laporan.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#16302b;--ink-2:#4b625c;--ink-3:#6c817b;--bg:#eef3f1;--paper:#fff;--line:#d6e0dc;--line-2:#e8eeeb;
+  --jade:#0f6b5c;--jade-d:#0a5346;--jade-l:#dcefe9;--pine:#123a32;--pine-2:#1c4b41;
+  --marigold:#d9930d;--marigold-l:#fdf1d7;--marigold-d:#8a5c00;--rose:#b83a4b;--rose-l:#fbe7ea;--sky-l:#e2edf7;--sky-d:#265c8c;
+  --r:10px;--font:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 var(--font);font-variant-numeric:tabular-nums}
+h1,h2,h3,p{margin:0}
+h1{font-size:26px;line-height:1.2;font-weight:800;letter-spacing:-.02em}
+h2{font-size:16px;line-height:1.3;font-weight:700}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--jade)}
+:focus-visible{outline:2px solid var(--marigold);outline-offset:2px}
+.muted{color:var(--ink-2)}.small{font-size:13px}.nowrap{white-space:nowrap}.right{text-align:right}
+
+/* Tombol */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:40px;padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:var(--paper);font-weight:600;font-size:14px;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--jade);color:var(--jade)}
+.btn.primary{background:var(--jade);border-color:var(--jade);color:#fff}
+.btn.primary:hover{background:var(--jade-d);color:#fff}
+.btn.danger{color:var(--rose);border-color:#e7c3c9}
+.btn.danger:hover{background:var(--rose);border-color:var(--rose);color:#fff}
+.btn.sm{min-height:34px;padding:4px 10px;font-size:13px}
+.btn[disabled]{opacity:.55;cursor:not-allowed}
+.btn svg,.nav svg,.icon-btn svg{flex:none}
+
+/* Tata letak utama */
+.shell{display:grid;grid-template-columns:268px minmax(0,1fr);min-height:100vh}
+.side{background:var(--pine);color:#e4eeea;position:sticky;top:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;z-index:40}
+.brand{display:flex;gap:11px;align-items:center;padding:20px 18px 16px}
+.brand img{width:40px;height:40px;border-radius:9px;background:#fff;object-fit:contain}
+.brand b{display:block;font-size:15px;line-height:1.25;color:#fff}
+.brand span{font-size:12px;color:#a9c3bb}
+.nav{padding:4px 10px 16px;flex:1}
+.grp{margin-bottom:2px}
+.grp-h{width:100%;display:flex;align-items:center;gap:10px;min-height:44px;padding:8px 10px;background:none;border:0;border-radius:8px;color:#e4eeea;font-weight:600;font-size:14px;cursor:pointer;text-align:left}
+.grp-h:hover{background:var(--pine-2)}
+.grp-h .lbl{flex:1}
+.grp-h .chev{transition:transform .18s}
+.grp-h[aria-expanded=true] .chev{transform:rotate(180deg)}
+.subs{display:grid;grid-template-rows:0fr;transition:grid-template-rows .18s}
+.grp.open .subs{grid-template-rows:1fr}
+.subs>div{overflow:hidden;visibility:hidden}
+.grp.open .subs>div{visibility:visible}
+.sub{display:block;margin:1px 0 1px 28px;padding:8px 10px;border-radius:7px;border-left:2px solid transparent;color:#bcd2cb;text-decoration:none;font-size:14px}
+.sub:hover{background:var(--pine-2);color:#fff}
+.sub.on{background:var(--pine-2);color:#fff;font-weight:700;border-left-color:var(--marigold)}
+.me{border-top:1px solid var(--pine-2);padding:14px 16px;font-size:13px}
+.me b{display:block;color:#fff;overflow-wrap:anywhere}
+.me span{color:#a9c3bb}
+.me button{margin-top:9px;width:100%;background:none;color:#e4eeea;border-color:#3b665b}
+.me button:hover{color:#fff;border-color:#fff}
+.main{min-width:0;display:flex;flex-direction:column}
+.topbar{display:none;align-items:center;gap:10px;padding:10px 16px;background:var(--pine);color:#fff;position:sticky;top:0;z-index:30}
+.topbar b{font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.icon-btn{width:40px;height:40px;display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:8px;background:none;color:inherit;cursor:pointer}
+.scrim{display:none}
+.content{padding:28px 32px 48px;max-width:1360px;width:100%;margin:0 auto}
+.demo-note{background:var(--marigold-l);color:var(--marigold-d);padding:8px 32px;font-size:13px;font-weight:600}
+.page-h{display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between;align-items:flex-end;margin-bottom:20px}
+.page-h p{color:var(--ink-2);max-width:68ch;margin-top:4px}
+.tools{display:flex;flex-wrap:wrap;gap:8px}
+
+/* Dropdown tombol */
+.dd{position:relative}
+.dd .chev{transition:transform .15s}
+.dd.open .chev{transform:rotate(180deg)}
+.menu{display:none;position:absolute;right:0;top:calc(100% + 5px);min-width:190px;background:var(--paper);border:1px solid var(--line);border-radius:9px;box-shadow:0 10px 24px rgba(18,58,50,.16);padding:5px;z-index:20}
+.dd.open .menu{display:block}
+.menu button{display:block;width:100%;padding:9px 11px;border:0;background:none;text-align:left;border-radius:6px;cursor:pointer;font-size:14px;font-weight:500}
+.menu button:hover{background:var(--jade-l)}
+
+/* Panel & tabel */
+.panel{background:var(--paper);border:1px solid var(--line);border-radius:var(--r)}
+.panel-h{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line-2)}
+.panel-b{padding:16px 18px}
+.filters{display:flex;flex-wrap:wrap;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line-2);align-items:flex-end}
+.fld{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600;color:var(--ink-2);min-width:0}
+.fld.grow{flex:1 1 220px}
+input,select,textarea{min-height:40px;padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:#fff;width:100%;font-size:15px}
+textarea{min-height:76px;resize:vertical}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--jade);outline-offset:-1px;border-color:var(--jade)}
+.t-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%}
+th{font-size:13px;font-weight:700;color:var(--ink-2);text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);white-space:nowrap;background:#f7faf9}
+td{padding:11px 14px;border-bottom:1px solid var(--line-2);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+tbody tr:hover{background:#f7faf9}
+td.num,th.num{text-align:right}
+.acts{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
+.name{font-weight:700}
+.sub-t{display:block;font-size:13px;color:var(--ink-2)}
+.empty{padding:44px 20px;text-align:center;color:var(--ink-2)}
+.empty b{display:block;color:var(--ink);font-size:16px;margin-bottom:3px}
+.pager{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 18px;border-top:1px solid var(--line-2);font-size:13px;color:var(--ink-2)}
+.pager div{display:flex;gap:6px}
+.badge{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12.5px;font-weight:700;white-space:nowrap;background:var(--line-2);color:var(--ink-2)}
+.badge.ok{background:var(--jade-l);color:var(--jade-d)}
+.badge.wait{background:var(--marigold-l);color:var(--marigold-d)}
+.badge.no{background:var(--rose-l);color:var(--rose)}
+.badge.info{background:var(--sky-l);color:var(--sky-d)}
+
+/* Kartu kuota model kartu absen */
+.punch{display:inline-grid;grid-template-columns:repeat(12,15px);gap:4px;vertical-align:middle}
+.punch i{width:15px;height:15px;border-radius:50%;background:#fff;border:1.5px solid #a9bdb6;display:block}
+.punch i.used{background:var(--jade);border-color:var(--jade)}
+.punch i.wait{border-color:var(--marigold);background:repeating-linear-gradient(135deg,var(--marigold) 0 2px,#fff 2px 4px)}
+.legend{display:flex;flex-wrap:wrap;gap:16px;font-size:13px;color:var(--ink-2)}
+.legend span{display:inline-flex;gap:6px;align-items:center}
+.legend .punch{grid-template-columns:15px}
+.sisa{font-size:20px;font-weight:800}
+.sisa.low{color:var(--rose)}
+
+/* Dashboard */
+.today{display:grid;grid-template-columns:repeat(5,1fr);background:var(--pine);border-radius:var(--r);color:#fff;margin-bottom:18px;overflow:hidden}
+.today a{display:block;padding:18px 20px;color:inherit;text-decoration:none;border-right:1px solid var(--pine-2)}
+.today a:last-child{border:0}
+.today a:hover{background:var(--pine-2)}
+.today b{display:block;font-size:34px;line-height:1.1;font-weight:800;letter-spacing:-.02em}
+.today span{font-size:13px;color:#bcd2cb}
+.today .hot b{color:#f7c35b}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.row-i{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 18px;border-bottom:1px solid var(--line-2)}
+.row-i:last-child{border:0}
+.chart{display:flex;align-items:flex-end;gap:6px;height:190px;padding-top:22px}
+.bar-c{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:5px;position:relative;min-width:0}
+.bar-c u{text-decoration:none;font-size:12px;font-weight:700}
+.bar{width:min(100%,30px);background:var(--jade);border-radius:4px 4px 0 0;min-height:2px}
+.bar-c.now .bar{background:var(--marigold)}
+.bar-c small{font-size:12px;color:var(--ink-2)}
+.hbar{display:grid;grid-template-columns:minmax(90px,130px) 1fr 34px;gap:10px;align-items:center;padding:6px 0;font-size:14px}
+.hbar div{background:var(--line-2);border-radius:4px;height:12px}
+.hbar i{display:block;height:100%;background:var(--jade);border-radius:4px}
+.hbar b{text-align:right}
+
+/* Modal */
+dialog{border:0;border-radius:12px;padding:0;width:min(640px,calc(100vw - 24px));max-height:calc(100dvh - 24px);color:var(--ink);box-shadow:0 24px 60px rgba(10,40,34,.3)}
+dialog::backdrop{background:rgba(14,40,34,.55)}
+.m-h{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--line-2);position:sticky;top:0;background:#fff;z-index:2}
+.m-h h2{font-size:18px}
+.m-b{padding:18px 20px}
+.m-f{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;padding:14px 20px;border-top:1px solid var(--line-2);position:sticky;bottom:0;background:#fff}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+.form .full{grid-column:1/-1}
+.help{font-weight:400;font-size:12.5px;color:var(--ink-3)}
+.err{background:var(--rose-l);color:var(--rose);padding:9px 12px;border-radius:7px;font-size:14px;font-weight:600;margin-bottom:12px}
+.req{color:var(--rose)}
+.check-list{max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:8px}
+.check-list label{display:flex;gap:10px;align-items:center;padding:9px 12px;border-bottom:1px solid var(--line-2);cursor:pointer}
+.check-list input{width:18px;min-height:18px;flex:none}
+
+/* Slip */
+.slip-head{display:flex;gap:12px;align-items:center;padding-bottom:12px;border-bottom:2px solid var(--ink);margin-bottom:12px}
+.slip-head img{width:48px;height:48px;object-fit:contain}
+.slip-meta{display:grid;grid-template-columns:1fr 1fr;gap:4px 18px;font-size:14px;margin-bottom:14px}
+.slip-cols{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.slip-cols h3{font-size:14px;margin-bottom:5px}
+.slip-l{display:flex;justify-content:space-between;gap:8px;padding:4px 0;font-size:14px;border-bottom:1px dotted var(--line)}
+.slip-l.t{font-weight:700;border-bottom:0}
+.slip-net{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:14px;padding:12px 14px;background:var(--jade-l);border-radius:8px;font-weight:700}
+.slip-net b{font-size:21px;font-weight:800}
+
+/* Impor */
+.seg{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+.seg button{padding:8px 14px;min-height:40px;border-radius:99px;border:1px solid var(--line);background:#fff;font-weight:600;font-size:14px;cursor:pointer}
+.seg button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.step{display:grid;grid-template-columns:30px minmax(0,1fr);gap:12px;padding:16px 18px;border-bottom:1px solid var(--line-2)}
+.step:last-child{border:0}
+.step>b{width:30px;height:30px;border-radius:50%;background:var(--jade);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px}
+.step p{margin:2px 0 10px;color:var(--ink-2)}
+.drop{display:block;border:2px dashed #a9bdb6;border-radius:9px;padding:20px;text-align:center;cursor:pointer;background:#f7faf9}
+.drop:hover,.drop.over{border-color:var(--jade);background:var(--jade-l)}
+.drop input{position:absolute;width:1px;height:1px;min-height:0;padding:0;opacity:0}
+.sample{font-size:13px}.sample th,.sample td{padding:7px 10px;white-space:nowrap}
+
+/* Masuk */
+.login{min-height:100vh;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);background:var(--pine)}
+.login-art{color:#fff;padding:56px;display:flex;flex-direction:column;justify-content:space-between;gap:40px}
+.login-art h1{font-size:clamp(32px,4.2vw,54px);max-width:12em;line-height:1.08;margin-top:40px}
+.login-art .brand{padding:0}
+.login-art .brand img{width:52px;height:52px}
+.big-punch{display:grid;grid-template-columns:repeat(12,minmax(0,34px));gap:10px}
+.big-punch i{aspect-ratio:1;border-radius:50%;border:2px solid #4d7a6e}
+.big-punch i.f{background:#f0b23a;border-color:#f0b23a}
+.login-box{background:var(--bg);display:flex;align-items:center;justify-content:center;padding:32px 20px}
+.login-card{width:min(420px,100%)}
+.login-card h2{font-size:24px;font-weight:800;margin-bottom:4px}
+.login-card form{display:grid;gap:13px;margin-top:18px}
+.link{background:none;border:0;padding:0;color:var(--jade);font-weight:600;cursor:pointer;font-size:14px;text-decoration:underline}
+.demo-b{display:grid;gap:9px;margin-top:18px}
+.demo-b button{display:block;text-align:left;padding:13px 15px;border-radius:9px;border:1px solid var(--line);background:#fff;cursor:pointer}
+.demo-b button:hover{border-color:var(--jade)}
+.demo-b b{display:block}.demo-b span{font-size:13px;color:var(--ink-2)}
+details.setup{margin-top:20px;background:#fff;border:1px solid var(--line);border-radius:9px;padding:0 14px;font-size:14px}
+details.setup summary{cursor:pointer;font-weight:700;padding:12px 0}
+details.setup ol{padding-left:20px;margin:0 0 12px}
+details.setup li{margin-bottom:6px}
+
+#toasts{position:fixed;right:16px;bottom:16px;display:grid;gap:8px;z-index:100;max-width:min(380px,calc(100vw - 32px))}
+.toast{background:var(--ink);color:#fff;padding:11px 15px;border-radius:9px;font-weight:600;font-size:14px;box-shadow:0 8px 20px rgba(0,0,0,.25)}
+.toast.bad{background:var(--rose)}
+.loading{padding:64px;text-align:center;color:var(--ink-2)}
+
+@media (max-width:1100px){.today{grid-template-columns:repeat(3,1fr)}.today a{border-bottom:1px solid var(--pine-2)}}
+@media (max-width:980px){
+  .shell{display:block}
+  .side{position:fixed;left:0;top:0;bottom:0;width:min(300px,84vw);transform:translateX(-100%);transition:transform .2s}
+  body.nav-open .side{transform:none}
+  body.nav-open .scrim{display:block;position:fixed;inset:0;background:rgba(14,40,34,.5);z-index:35}
+  .topbar{display:flex}
+  .content{padding:20px 16px 40px}.demo-note{padding:8px 16px}
+  .login{grid-template-columns:1fr}.login-art{padding:28px 20px;gap:12px}.login-art h1{margin-top:16px}.big-punch{display:none}
+}
+@media (max-width:720px){
+  h1{font-size:22px}
+  .grid2{grid-template-columns:1fr}
+  .today{grid-template-columns:repeat(2,1fr)}
+  .today b{font-size:28px}
+  .tools,.tools>.btn,.tools>.dd{flex:1 1 auto}
+  .tools .btn{width:100%}
+  .dd .menu{left:0;right:auto}
+  .fld{flex:1 1 44%}.fld.grow{flex:1 1 100%}
+  table.cards thead{display:none}
+  table.cards,table.cards tbody,table.cards tr,table.cards td{display:block;width:100%}
+  table.cards tr{padding:10px 16px;border-bottom:1px solid var(--line)}
+  table.cards tr:last-child{border:0}
+  table.cards td{display:flex;justify-content:space-between;gap:14px;padding:5px 0;border:0;text-align:right}
+  table.cards td::before{content:attr(data-l);color:var(--ink-2);font-size:13px;font-weight:600;text-align:left;flex:none}
+  table.cards td.acts-c{display:block}table.cards td.acts-c::before{display:none}
+  table.cards td.acts-c .acts{justify-content:flex-start;margin-top:5px}
+  table.cards td .sub-t{text-align:right}
+  .punch{grid-template-columns:repeat(8,15px)}
+  .form{grid-template-columns:1fr}
+  .slip-cols,.slip-meta{grid-template-columns:1fr}
+  dialog{width:100vw;max-width:100vw;margin:auto 0 0;border-radius:14px 14px 0 0;max-height:92dvh}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app"><div class="loading">Memuat aplikasi…</div></div>
+<div id="toasts" role="status" aria-live="polite"></div>
+<dialog id="modal"></dialog>
+
+<!-- SQL Supabase: salin seluruh isi blok ini ke Supabase > SQL Editor, lalu jalankan satu kali. -->
+<script type="text/plain" id="schema-sql">
+-- Monitoring Karyawan: skema Supabase. Jalankan satu kali di SQL Editor.
+create table public.pengaturan(
+  id int primary key default 1 check (id=1),
+  perusahaan text not null default 'Nama Perusahaan',
+  alamat text default '',
+  logo text default '',
+  kuota_default int not null default 12
+);
+insert into public.pengaturan(id) values (1);
+
+create table public.shift(
+  id uuid primary key default gen_random_uuid(),
+  nama text not null unique,
+  jam_mulai time not null,
+  jam_selesai time not null,
+  keterangan text default ''
+);
+
+create table public.karyawan(
+  id uuid primary key default gen_random_uuid(),
+  nik text not null unique,
+  nama text not null,
+  email text,
+  telepon text default '',
+  jabatan text default '',
+  departemen text default '',
+  tgl_masuk date,
+  jenis_karyawan text not null default 'Tetap' check (jenis_karyawan in ('Tetap','Kontrak','Magang','Harian')),
+  status text not null default 'Aktif' check (status in ('Aktif','Nonaktif')),
+  shift_id uuid references public.shift(id) on delete set null,
+  kuota_cuti int not null default 12 check (kuota_cuti>=0),
+  created_at timestamptz not null default now()
+);
+create unique index karyawan_email_unik on public.karyawan(lower(email)) where email is not null and email<>'';
+
+create table public.profil(
+  id uuid primary key references auth.users(id) on delete cascade,
+  email text not null,
+  nama text default '',
+  role text not null default 'pending' check (role in ('admin','staff','karyawan','pending')),
+  created_at timestamptz not null default now()
+);
+
+create table public.cuti(
+  id uuid primary key default gen_random_uuid(),
+  karyawan_id uuid not null references public.karyawan(id) on delete cascade,
+  jenis text not null check (jenis in ('Cuti Tahunan','Izin','Sakit','Cuti Melahirkan','Cuti Besar','Cuti Lainnya')),
+  mulai date not null,
+  selesai date not null,
+  hari int not null default 0,
+  alasan text default '',
+  status text not null default 'Menunggu' check (status in ('Menunggu','Disetujui','Ditolak')),
+  catatan text default '',
+  disetujui_oleh text default '',
+  created_at timestamptz not null default now()
+);
+create index cuti_karyawan on public.cuti(karyawan_id);
+
+create table public.slip_gaji(
+  id uuid primary key default gen_random_uuid(),
+  karyawan_id uuid not null references public.karyawan(id) on delete cascade,
+  periode text not null check (periode ~ '^[0-9]{4}-[0-9]{2}$'),
+  gaji_pokok numeric not null default 0,
+  tunjangan numeric not null default 0,
+  lembur numeric not null default 0,
+  bonus numeric not null default 0,
+  bpjs numeric not null default 0,
+  pph21 numeric not null default 0,
+  potongan_lain numeric not null default 0,
+  catatan text default '',
+  created_at timestamptz not null default now(),
+  unique(karyawan_id,periode)
+);
+
+create table public.log_aktivitas(
+  id uuid primary key default gen_random_uuid(),
+  waktu timestamptz not null default now(),
+  pelaku text not null,
+  aksi text not null,
+  detail text not null
+);
+
+create function public.my_role() returns text language sql stable security definer set search_path=public as
+$$ select role from profil where id=auth.uid() $$;
+
+create function public.my_karyawan() returns uuid language sql stable security definer set search_path=public as
+$$ select k.id from karyawan k join profil p on lower(k.email)=lower(p.email) where p.id=auth.uid() limit 1 $$;
+
+-- Akun baru: menjadi karyawan bila email-nya terdaftar, selain itu menunggu admin.
+create function public.akun_baru() returns trigger language plpgsql security definer set search_path=public as $$
+begin
+  insert into profil(id,email,nama,role) values(
+    new.id,new.email,coalesce(new.raw_user_meta_data->>'nama',''),
+    case when exists(select 1 from karyawan where lower(email)=lower(new.email)) then 'karyawan' else 'pending' end);
+  return new;
+end $$;
+create trigger on_auth_user_created after insert on auth.users for each row execute function public.akun_baru();
+
+-- Menyelaraskan akun dan mencatat penambahan/penghapusan karyawan.
+create function public.karyawan_setelah() returns trigger language plpgsql security definer set search_path=public as $$
+declare siapa text := coalesce((select email from profil where id=auth.uid()),'sistem');
+begin
+  if tg_op='DELETE' then
+    update profil set role='pending' where role='karyawan' and lower(email)=lower(old.email);
+    insert into log_aktivitas(pelaku,aksi,detail) values(siapa,'Hapus karyawan',old.nik||' - '||old.nama);
+    return old;
+  end if;
+  if tg_op='UPDATE' and old.email is distinct from new.email and old.email is not null then
+    update profil set role='pending' where role='karyawan' and lower(email)=lower(old.email);
+  end if;
+  update profil set role='karyawan' where role='pending' and lower(email)=lower(new.email);
+  if tg_op='INSERT' then
+    insert into log_aktivitas(pelaku,aksi,detail) values(siapa,'Tambah karyawan',new.nik||' - '||new.nama);
+  end if;
+  return new;
+end $$;
+create trigger karyawan_setelah after insert or update or delete on public.karyawan for each row execute function public.karyawan_setelah();
+
+-- Hari cuti dihitung di server (Senin-Jumat) dan kuota diperiksa di server.
+create function public.cuti_sebelum() returns trigger language plpgsql security definer set search_path=public as $$
+declare kuota int; terpakai int;
+begin
+  if new.selesai<new.mulai then raise exception 'Tanggal selesai tidak boleh sebelum tanggal mulai.'; end if;
+  select count(*) into new.hari from generate_series(new.mulai,new.selesai,interval '1 day') d where extract(isodow from d)<6;
+  if new.hari=0 then raise exception 'Rentang tanggal hanya berisi akhir pekan.'; end if;
+  if coalesce(my_role(),'')<>'admin' then new.disetujui_oleh:=''; new.catatan:=''; end if;
+  if new.status='Ditolak' then return new; end if;
+  if exists(select 1 from cuti c where c.karyawan_id=new.karyawan_id and c.status<>'Ditolak'
+            and c.id is distinct from new.id and c.mulai<=new.selesai and c.selesai>=new.mulai) then
+    raise exception 'Tanggal ini bertabrakan dengan pengajuan lain.';
+  end if;
+  if new.jenis='Cuti Tahunan' then
+    if extract(year from new.mulai)<>extract(year from new.selesai) then
+      raise exception 'Cuti Tahunan lintas tahun harus diajukan terpisah per tahun.';
+    end if;
+    select kuota_cuti into kuota from karyawan where id=new.karyawan_id;
+    select coalesce(sum(hari),0) into terpakai from cuti c where c.karyawan_id=new.karyawan_id and c.jenis='Cuti Tahunan'
+      and c.status<>'Ditolak' and c.id is distinct from new.id and extract(year from c.mulai)=extract(year from new.mulai);
+    if terpakai+new.hari>kuota then raise exception 'Sisa kuota Cuti Tahunan tidak cukup (tersisa % hari).',kuota-terpakai; end if;
+  end if;
+  return new;
+end $$;
+create trigger cuti_sebelum before insert or update on public.cuti for each row execute function public.cuti_sebelum();
+
+alter table public.pengaturan enable row level security;
+alter table public.shift enable row level security;
+alter table public.karyawan enable row level security;
+alter table public.profil enable row level security;
+alter table public.cuti enable row level security;
+alter table public.slip_gaji enable row level security;
+alter table public.log_aktivitas enable row level security;
+
+create policy baca on public.pengaturan for select to anon,authenticated using (true);
+create policy ubah on public.pengaturan for update to authenticated using (my_role()='admin') with check (my_role()='admin');
+
+create policy baca on public.shift for select to authenticated using (my_role() in ('admin','staff','karyawan'));
+create policy tulis on public.shift for all to authenticated using (my_role()='admin') with check (my_role()='admin');
+
+create policy baca on public.karyawan for select to authenticated using (my_role() in ('admin','staff') or id=my_karyawan());
+create policy tambah on public.karyawan for insert to authenticated with check (my_role() in ('admin','staff'));
+create policy ubah on public.karyawan for update to authenticated using (my_role()='admin') with check (my_role()='admin');
+create policy hapus on public.karyawan for delete to authenticated using (my_role() in ('admin','staff'));
+
+create policy baca on public.profil for select to authenticated using (id=auth.uid() or my_role()='admin');
+create policy ubah on public.profil for update to authenticated using (my_role()='admin' and id<>auth.uid()) with check (my_role()='admin');
+
+create policy baca on public.cuti for select to authenticated using (my_role()='admin' or karyawan_id=my_karyawan());
+create policy tambah on public.cuti for insert to authenticated with check (my_role()='admin' or (karyawan_id=my_karyawan() and status='Menunggu'));
+create policy ubah on public.cuti for update to authenticated using (my_role()='admin') with check (my_role()='admin');
+create policy hapus on public.cuti for delete to authenticated using (my_role()='admin' or (karyawan_id=my_karyawan() and status='Menunggu'));
+
+create policy baca on public.slip_gaji for select to authenticated using (my_role()='admin' or karyawan_id=my_karyawan());
+create policy tulis on public.slip_gaji for all to authenticated using (my_role()='admin') with check (my_role()='admin');
+
+create policy baca on public.log_aktivitas for select to authenticated using (my_role()='admin');
+
+revoke all on all tables in schema public from anon;
+grant select on public.pengaturan to anon;
+grant select,insert,update,delete on all tables in schema public to authenticated;
+
+insert into public.shift(nama,jam_mulai,jam_selesai,keterangan) values
+ ('Reguler','08:00','17:00','Senin sampai Jumat'),('Pagi','06:00','14:00',''),('Siang','14:00','22:00',''),('Malam','22:00','06:00','');
+
+-- SETELAH mendaftar lewat halaman Daftar, jadikan akun Anda admin utama:
+-- update public.profil set role='admin' where email='email-anda@domain.com';
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+<script>
+'use strict';
+/* ==========================================================
+   KONFIGURASI SUPABASE
+   Isi dua nilai ini dari Supabase > Project Settings > API.
+   Gunakan anon/publishable key, JANGAN service_role key.
+   Selama kosong, aplikasi berjalan sebagai mode demo.
+   ========================================================== */
+const SUPABASE_URL = '';
+const SUPABASE_ANON_KEY = '';
+
+const MODE = SUPABASE_URL && SUPABASE_ANON_KEY ? 'cloud' : 'demo';
+const JENIS_CUTI = ['Cuti Tahunan','Izin','Sakit','Cuti Melahirkan','Cuti Besar','Cuti Lainnya'];
+const JENIS_KARYAWAN = ['Tetap','Kontrak','Magang','Harian'];
+const STATUS_CUTI = ['Menunggu','Disetujui','Ditolak'];
+const BULAN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+const ROLE_LABEL = {admin:'Admin HR',staff:'Staff HR',karyawan:'Karyawan',pending:'Menunggu akses'};
+
+/* ---------- Utilitas ---------- */
+const $ = (s,r=document)=>r.querySelector(s);
+const $$ = (s,r=document)=>[...r.querySelectorAll(s)];
+const esc = v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad = n=>String(n).padStart(2,'0');
+const ymd = (d=new Date())=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const today = ()=>ymd();
+const thisYear = ()=>new Date().getFullYear();
+const uid = ()=>crypto.randomUUID?crypto.randomUUID():'id-'+Date.now()+'-'+Math.random().toString(16).slice(2);
+const num = v=>Number(v)||0;
+const rupiah = v=>'Rp '+new Intl.NumberFormat('id-ID',{maximumFractionDigits:0}).format(num(v));
+function fmtDate(s){ if(!s) return '-'; const [y,m,d]=String(s).slice(0,10).split('-'); return `${d} ${BULAN[+m-1].slice(0,3)} ${y}`; }
+function fmtTime(s){ return String(s||'').slice(0,5); }
+function fmtPeriod(p){ if(!p) return '-'; const [y,m]=p.split('-'); return `${BULAN[+m-1]} ${y}`; }
+function fmtDateTime(s){ const d=new Date(s); return `${fmtDate(ymd(d))} ${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+function workdays(a,b){ let n=0; const end=Date.parse(b+'T00:00:00Z'); for(let t=Date.parse(a+'T00:00:00Z');t<=end;t+=864e5){const w=new Date(t).getUTCDay(); if(w&&w<6)n++;} return n; }
+const chev = '<svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+function icon(p,s=19){return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;}
+const IC={home:'<path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10"/>',users:'<circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3-6 7-6s7 2 7 6"/><path d="M17 4a4 4 0 0 1 0 8M19 15c2 1 3 3 3 6"/>',cal:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',money:'<rect x="2" y="6" width="20" height="13" rx="2"/><circle cx="12" cy="12.5" r="3"/>',clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',doc:'<path d="M6 3h9l4 4v14H6z"/><path d="M9 12h7M9 16h7"/>',gear:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>',menu:'<path d="M3 6h18M3 12h18M3 18h18"/>',x:'<path d="M6 6l12 12M18 6 6 18"/>'};
+function toast(m,bad){const e=document.createElement('div');e.className='toast'+(bad?' bad':'');e.textContent=m;$('#toasts').append(e);while($('#toasts').children.length>3)$('#toasts').firstChild.remove();setTimeout(()=>e.remove(),bad?6000:3500);}
+function friendly(e){
+  const c=e&&e.code, m=(e&&e.message)||String(e);
+  if(c==='23505') return 'Data sudah ada. Periksa NIK, email, nama, atau periode yang sama.';
+  if(c==='42501'||/row-level security/i.test(m)) return 'Akun Anda tidak berhak melakukan tindakan ini.';
+  if(/Invalid login/i.test(m)) return 'Email atau kata sandi salah.';
+  if(/Email not confirmed/i.test(m)) return 'Email belum dikonfirmasi. Buka tautan konfirmasi di kotak masuk Anda.';
+  if(/Failed to fetch|NetworkError/i.test(m)) return 'Tidak dapat terhubung ke server. Periksa koneksi internet lalu coba lagi.';
+  return m;
+}
+function defaultLogo(){
+  const c=document.createElement('canvas');c.width=c.height=240;const x=c.getContext('2d');
+  x.fillStyle='#0f6b5c';x.beginPath();x.roundRect(0,0,240,240,44);x.fill();
+  for(let r=0;r<3;r++)for(let k=0;k<3;k++){x.beginPath();x.arc(62+k*58,62+r*58,20,0,7);x.fillStyle=(r+k)%3===0?'#f0b23a':'#fff';x.fill();}
+  return c.toDataURL('image/png');
+}
+const LOGO_DEFAULT=defaultLogo();
+const logo=()=>S.settings.logo||LOGO_DEFAULT;
+
+/* ---------- Status aplikasi ---------- */
+const S={user:null,settings:{perusahaan:'Nama Perusahaan',alamat:'',logo:'',kuota_default:12},
+  d:{karyawan:[],shift:[],cuti:[],slip_gaji:[],profil:[],log_aktivitas:[]},route:'',open:new Set(),authMode:'masuk',booted:false};
+const F={};
+
+/* ---------- Validasi cuti (dipakai formulir, impor, dan mode demo) ---------- */
+function checkCuti(r,ignoreId){
+  if(r.selesai<r.mulai) return 'Tanggal selesai tidak boleh sebelum tanggal mulai.';
+  const hari=workdays(r.mulai,r.selesai);
+  if(!hari) return 'Rentang tanggal hanya berisi akhir pekan.';
+  if(r.status==='Ditolak') return '';
+  const lain=S.d.cuti.filter(c=>c.karyawan_id===r.karyawan_id&&c.status!=='Ditolak'&&c.id!==ignoreId);
+  if(lain.some(c=>c.mulai<=r.selesai&&c.selesai>=r.mulai)) return 'Tanggal ini bertabrakan dengan pengajuan lain.';
+  if(r.jenis==='Cuti Tahunan'){
+    if(r.mulai.slice(0,4)!==r.selesai.slice(0,4)) return 'Cuti Tahunan lintas tahun harus diajukan terpisah per tahun.';
+    const k=S.d.karyawan.find(x=>x.id===r.karyawan_id); if(!k) return '';
+    const used=lain.filter(c=>c.jenis==='Cuti Tahunan'&&c.mulai.slice(0,4)===r.mulai.slice(0,4)).reduce((a,c)=>a+num(c.hari),0);
+    if(used+hari>num(k.kuota_cuti)) return `Sisa kuota Cuti Tahunan tidak cukup (tersisa ${num(k.kuota_cuti)-used} hari).`;
+  }
+  return '';
+}
+
+/* ---------- Backend: mode demo (tersimpan di browser ini) ---------- */
+function demoApi(){
+  const KEY='hr_monitoring_demo_v1'; let mem=null;
+  const read=()=>{ if(mem) return mem; try{const v=localStorage.getItem(KEY); if(v){mem=JSON.parse(v);return mem;}}catch(e){} mem=seed(); write(); return mem; };
+  const write=()=>{try{localStorage.setItem(KEY,JSON.stringify(mem));}catch(e){}};
+  function seed(){
+    const sh=[['Reguler','08:00','17:00','Senin sampai Jumat'],['Pagi','06:00','14:00',''],['Siang','14:00','22:00',''],['Malam','22:00','06:00','']].map(a=>({id:uid(),nama:a[0],jam_mulai:a[1],jam_selesai:a[2],keterangan:a[3]}));
+    const raw=[['Sari Wulandari','Analis Keuangan','Keuangan','Tetap'],['Budi Santoso','Supervisor Produksi','Produksi','Tetap'],['Dewi Lestari','Staf Administrasi','Administrasi','Kontrak'],['Agus Prasetyo','Operator Mesin','Produksi','Tetap'],['Rina Marlina','Staf Pemasaran','Pemasaran','Tetap'],['Hendra Gunawan','Teknisi','Teknik','Tetap'],['Putri Anggraini','Akuntan','Keuangan','Tetap'],['Fajar Nugroho','Operator Mesin','Produksi','Kontrak'],['Maya Sari','Desainer','Pemasaran','Kontrak'],['Rizki Ramadhan','Teknisi','Teknik','Tetap'],['Lina Kartika','Staf Gudang','Logistik','Tetap'],['Yusuf Hidayat','Pengemudi','Logistik','Harian'],['Nadia Putri','Peserta Magang','Administrasi','Magang'],['Bayu Saputra','Operator Mesin','Produksi','Tetap'],['Siti Rahmawati','Staf Pembelian','Logistik','Tetap'],['Dimas Pratama','Programmer','Teknik','Kontrak']];
+    const karyawan=raw.map((a,i)=>({id:uid(),nik:'EMP'+pad(i+1).padStart(3,'0'),nama:a[0],email:a[0].split(' ')[0].toLowerCase()+'@demo.test',telepon:'08120000'+pad(i+10)+'00',jabatan:a[1],departemen:a[2],tgl_masuk:`${2017+i%8}-${pad(i%12+1)}-0${i%8+1}`,jenis_karyawan:a[3],status:i===11?'Nonaktif':'Aktif',shift_id:sh[a[2]==='Produksi'?1+i%3:0].id,kuota_cuti:12,created_at:new Date().toISOString()}));
+    const y=thisYear(), now=new Date(), mm=now.getMonth()+1, cuti=[];
+    const add=(i,j,a,b,st,al)=>cuti.push({id:uid(),karyawan_id:karyawan[i].id,jenis:j,mulai:a,selesai:b,hari:workdays(a,b),alasan:al,status:st,catatan:'',disetujui_oleh:st==='Disetujui'?'admin@demo.test':'',created_at:new Date().toISOString()});
+    add(0,'Cuti Tahunan',`${y}-02-09`,`${y}-02-13`,'Disetujui','Acara keluarga');
+    add(0,'Cuti Tahunan',`${y}-06-08`,`${y}-06-10`,'Disetujui','Keperluan pribadi');
+    add(1,'Sakit',`${y}-03-03`,`${y}-03-05`,'Disetujui','Demam');
+    add(2,'Cuti Tahunan',`${y}-04-06`,`${y}-04-17`,'Disetujui','Mudik');
+    add(3,'Izin',`${y}-05-12`,`${y}-05-12`,'Disetujui','Mengurus dokumen');
+    add(4,'Cuti Tahunan',`${y}-07-06`,`${y}-07-15`,'Disetujui','Perjalanan keluarga');
+    add(5,'Cuti Tahunan',`${y}-08-10`,`${y}-08-12`,'Disetujui','Keperluan keluarga');
+    add(6,'Sakit',`${y}-09-07`,`${y}-09-08`,'Disetujui','Rawat jalan');
+    add(7,'Cuti Tahunan',`${y}-10-05`,`${y}-10-07`,'Ditolak','Liburan');
+    let t=new Date(); while(t.getDay()===0||t.getDay()===6) t.setDate(t.getDate()+1); const d0=ymd(t);
+    add(8,'Cuti Tahunan',d0,d0,'Disetujui','Keperluan pribadi');
+    add(9,'Sakit',d0,d0,'Disetujui','Flu');
+    t.setDate(t.getDate()+14); while(t.getDay()===0||t.getDay()===6) t.setDate(t.getDate()+1); const d1=ymd(t);
+    t.setDate(t.getDate()+1); while(t.getDay()===0||t.getDay()===6) t.setDate(t.getDate()+1); const d2=ymd(t);
+    if(d1.slice(0,4)===d2.slice(0,4)) add(0,'Cuti Tahunan',d1,d2,'Menunggu','Pernikahan saudara');
+    add(10,'Izin',d1,d1,'Menunggu','Mengantar orang tua berobat');
+    add(13,'Cuti Tahunan',d2,d2,'Menunggu','Keperluan pribadi');
+    const slip_gaji=[];
+    for(let b=1;b<=3;b++){ const dt=new Date(y,mm-1-b,1), p=`${dt.getFullYear()}-${pad(dt.getMonth()+1)}`;
+      karyawan.slice(0,16).forEach((k,i)=>{ if(k.status!=='Aktif')return; const g=4500000+i*275000; slip_gaji.push({id:uid(),karyawan_id:k.id,periode:p,gaji_pokok:g,tunjangan:750000,lembur:(i%3)*250000,bonus:0,bpjs:Math.round(g*.04),pph21:Math.round(g*.025),potongan_lain:0,catatan:'',created_at:new Date().toISOString()});});
+    }
+    const profil=[{id:'u-admin',email:'admin@demo.test',nama:'Admin HR',role:'admin',created_at:new Date().toISOString()},{id:'u-staff',email:'staff@demo.test',nama:'Staff HR',role:'staff',created_at:new Date().toISOString()},{id:'u-sari',email:'sari@demo.test',nama:'Sari Wulandari',role:'karyawan',created_at:new Date().toISOString()}];
+    return {settings:{perusahaan:'Perusahaan Demo',alamat:'Jakarta',logo:'',kuota_default:12},shift:sh,karyawan,cuti,slip_gaji,profil,log_aktivitas:[],session:null};
+  }
+  const me=()=>{const r=read();return r.profil.find(p=>p.id===r.session)||null;};
+  function allow(t,op,row){
+    const u=me(), role=u&&u.role; let ok=false;
+    if(role==='admin') ok=true;
+    else if(role==='staff') ok=t==='karyawan'&&(op==='insert'||op==='delete');
+    else if(role==='karyawan') ok=t==='cuti'&&row&&row.karyawan_id===myK()&&row.status==='Menunggu'&&op!=='update';
+    if(!ok) throw Object.assign(new Error('Akun Anda tidak berhak melakukan tindakan ini.'),{code:'42501'});
+  }
+  const myK=()=>{const u=me(),k=read().karyawan.find(x=>(x.email||'').toLowerCase()===u.email.toLowerCase());return k&&k.id;};
+  const log=(aksi,detail)=>read().log_aktivitas.unshift({id:uid(),waktu:new Date().toISOString(),pelaku:me().email,aksi,detail});
+  const unique=(t,row,id)=>{const r=read(); const dup=(k,val)=>val&&r[t].some(x=>x.id!==id&&String(x[k]||'').toLowerCase()===String(val).toLowerCase());
+    if(t==='karyawan'&&(dup('nik',row.nik)||dup('email',row.email))||t==='shift'&&dup('nama',row.nama)||t==='slip_gaji'&&r[t].some(x=>x.id!==id&&x.karyawan_id===row.karyawan_id&&x.periode===row.periode)) throw Object.assign(new Error('dup'),{code:'23505'});};
+  return {
+    async session(){return me();},
+    async signInDemo(id){const r=read();r.session=id;write();},
+    async signOut(){read().session=null;write();},
+    async loadSettings(){return read().settings;},
+    async loadAll(){const r=read();const role=me().role;
+      if(role==='admin') return r;
+      if(role==='staff') return {karyawan:r.karyawan,shift:r.shift};
+      const k=myK();return {karyawan:r.karyawan.filter(x=>x.id===k),shift:r.shift,cuti:r.cuti.filter(x=>x.karyawan_id===k),slip_gaji:r.slip_gaji.filter(x=>x.karyawan_id===k)};},
+    async insert(t,rows){const r=read();const copy=JSON.parse(JSON.stringify(r));
+      try{ for(const row of rows){allow(t,'insert',row);unique(t,row);const x={id:uid(),created_at:new Date().toISOString(),...row};
+        if(t==='cuti'){S.d.cuti=r.cuti;S.d.karyawan=r.karyawan;const e=checkCuti(x);if(e)throw new Error(e);x.hari=workdays(x.mulai,x.selesai);}
+        r[t].push(x); if(t==='karyawan')log('Tambah karyawan',x.nik+' - '+x.nama);} }
+      catch(e){mem=copy;throw e;} write();},
+    async update(t,ids,patch){const r=read();for(const id of ids){const x=r[t].find(y=>y.id===id);allow(t,'update',x);unique(t,{...x,...patch},id);
+      const n={...x,...patch};if(t==='cuti'){const e=checkCuti(n,id);if(e)throw new Error(e);n.hari=workdays(n.mulai,n.selesai);}Object.assign(x,n);}write();},
+    async remove(t,id){const r=read();const x=r[t].find(y=>y.id===id);allow(t,'delete',x);r[t]=r[t].filter(y=>y.id!==id);
+      if(t==='karyawan'){log('Hapus karyawan',x.nik+' - '+x.nama);r.cuti=r.cuti.filter(c=>c.karyawan_id!==id);r.slip_gaji=r.slip_gaji.filter(c=>c.karyawan_id!==id);}
+      if(t==='shift')r.karyawan.forEach(k=>{if(k.shift_id===id)k.shift_id=null;});write();},
+    async saveSettings(p){Object.assign(read().settings,p);write();}
+  };
+}
+
+/* ---------- Backend: Supabase ---------- */
+function cloudApi(){
+  const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+  const ok=r=>{if(r.error)throw r.error;return r.data;};
+  const all=async t=>{const out=[];for(let i=0;;i+=1000){const d=ok(await sb.from(t).select('*').order('id').range(i,i+999));out.push(...d);if(d.length<1000)return out;}};
+  return {
+    onRecovery(fn){sb.auth.onAuthStateChange(e=>{if(e==='PASSWORD_RECOVERY')setTimeout(fn,0);});},
+    async session(){const {data:{session}}=await sb.auth.getSession();if(!session)return null;
+      const d=ok(await sb.from('profil').select('*').eq('id',session.user.id).maybeSingle());
+      return d||{id:session.user.id,email:session.user.email,nama:'',role:'pending'};},
+    async signIn(email,password){ok(await sb.auth.signInWithPassword({email,password}));},
+    async signUp(email,password,nama){const d=ok(await sb.auth.signUp({email,password,options:{data:{nama},emailRedirectTo:location.origin}}));return !!d.session;},
+    async resetPw(email){ok(await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin}));},
+    async updatePw(password){ok(await sb.auth.updateUser({password}));},
+    async signOut(){await sb.auth.signOut();},
+    async loadSettings(){return ok(await sb.from('pengaturan').select('*').eq('id',1).maybeSingle());},
+    async loadAll(role){const tables={admin:['karyawan','shift','cuti','slip_gaji','profil','log_aktivitas'],staff:['karyawan','shift'],karyawan:['karyawan','shift','cuti','slip_gaji']}[role]||[];
+      const res=await Promise.all(tables.map(all));const o={};tables.forEach((t,i)=>o[t]=res[i]);return o;},
+    async insert(t,rows){ok(await sb.from(t).insert(rows));},
+    async update(t,ids,patch){for(let i=0;i<ids.length;i+=100)ok(await sb.from(t).update(patch).in('id',ids.slice(i,i+100)));},
+    async remove(t,id){const d=ok(await sb.from(t).delete().eq('id',id).select('id'));if(!d.length)throw Object.assign(new Error('Akun Anda tidak berhak melakukan tindakan ini.'),{code:'42501'});},
+    async saveSettings(p){ok(await sb.from('pengaturan').update(p).eq('id',1));}
+  };
+}
+let Api;
+
+/* ---------- Pemetaan data ---------- */
+const emp=id=>S.d.karyawan.find(k=>k.id===id)||{nama:'(terhapus)',nik:'-',departemen:'-',jabatan:'-',kuota_cuti:0};
+const shiftOf=id=>S.d.shift.find(s=>s.id===id);
+const myEmp=()=>S.d.karyawan.find(k=>(k.email||'').toLowerCase()===S.user.email.toLowerCase());
+const net=s=>num(s.gaji_pokok)+num(s.tunjangan)+num(s.lembur)+num(s.bonus)-num(s.bpjs)-num(s.pph21)-num(s.potongan_lain);
+function kuotaOf(k,y){
+  const list=S.d.cuti.filter(c=>c.karyawan_id===k.id&&c.jenis==='Cuti Tahunan'&&c.mulai.startsWith(String(y)));
+  const pakai=list.filter(c=>c.status==='Disetujui').reduce((a,c)=>a+num(c.hari),0);
+  const tunggu=list.filter(c=>c.status==='Menunggu').reduce((a,c)=>a+num(c.hari),0);
+  const kuota=num(k.kuota_cuti);
+  return {kuota,pakai,tunggu,sisa:kuota-pakai};
+}
+function punch(q){
+  let h='';for(let i=0;i<Math.max(q.kuota,q.pakai+q.tunggu);i++){h+=`<i class="${i<q.pakai?'used':i<q.pakai+q.tunggu?'wait':''}"></i>`;}
+  return `<span class="punch" role="img" aria-label="Terpakai ${q.pakai}, menunggu ${q.tunggu}, kuota ${q.kuota} hari">${h}</span>`;
+}
+const badge=s=>`<span class="badge ${{Disetujui:'ok',Aktif:'ok',Menunggu:'wait',Ditolak:'no',Nonaktif:'no',admin:'ok',staff:'info',pending:'wait'}[s]||''}">${esc(ROLE_LABEL[s]||s)}</span>`;
+const years=()=>{const s=new Set([thisYear()]);S.d.cuti.forEach(c=>s.add(+c.mulai.slice(0,4)));return [...s].sort((a,b)=>b-a).map(String);};
+const depts=()=>[...new Set(S.d.karyawan.map(k=>k.departemen).filter(Boolean))].sort();
+const periods=()=>[...new Set(S.d.slip_gaji.map(s=>s.periode))].sort().reverse();
+const isOffToday=c=>c.status==='Disetujui'&&c.mulai<=today()&&c.selesai>=today();
+
+/* ---------- Unduh Excel & PDF ---------- */
+function saveBlob(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),3000);}
+const fileSafe=s=>s.replace(/[\\/:*?"<>|]+/g,'-').trim();
+const printedAt=()=>`Dicetak ${fmtDate(today())}`;
+const b64=d=>d.split(',')[1];
+const XL_MONEY='"Rp" #,##0;[Red]-"Rp" #,##0';
+function cellOut(c,r){const v=c.v(r);if(c.t==='date'){if(!v)return '';const[y,m,d]=v.slice(0,10).split('-').map(Number);return new Date(Date.UTC(y,m-1,d));}if(c.t==='money'||c.t==='num')return num(v);return v==null?'':String(v);}
+function colLen(c,r){const v=c.v(r);if(c.t==='date')return 12;if(c.t==='money')return rupiah(v).length+1;return String(v??'').length;}
+async function headerXl(wb,ws,title,sub,lastCol){
+  const id=wb.addImage({base64:b64(logo()),extension:'png'});
+  ws.addImage(id,{tl:{col:.15,row:.15},ext:{width:58,height:58}});
+  [[1,S.settings.perusahaan,{bold:true,size:12,color:{argb:'FF16302B'}}],[2,title,{bold:true,size:16,color:{argb:'FF0F6B5C'}}],[3,sub,{size:10,color:{argb:'FF4B625C'}}]].forEach(([r,t,font])=>{
+    ws.mergeCells(r,3,r,Math.max(lastCol,3));const c=ws.getCell(r,3);c.value=t;c.font=font;c.alignment={vertical:'middle'};ws.getRow(r).height=r===2?24:18;});
+}
+async function exportExcel({title,subtitle,cols,rows,total}){
+  if(!window.ExcelJS) throw new Error('Pustaka Excel gagal dimuat. Periksa koneksi internet.');
+  const wb=new ExcelJS.Workbook();wb.creator=S.settings.perusahaan;
+  const ws=wb.addWorksheet(title.replace(/[\\/?*[\]:]/g,'-').slice(0,31),{views:[{state:'frozen',ySplit:5,showGridLines:false}],pageSetup:{paperSize:9,orientation:cols.length>5?'landscape':'portrait',fitToPage:true,fitToWidth:1,fitToHeight:0,printTitlesRow:'5:5',margins:{left:.4,right:.4,top:.5,bottom:.5,header:.2,footer:.2}},headerFooter:{oddFooter:'&LMonitoring Karyawan&RHalaman &P dari &N'}});
+  const all=[{l:'No',t:'no',v:(r,i)=>i+1},...cols];
+  await headerXl(wb,ws,title,`${subtitle?subtitle+'   |   ':''}${printedAt()}   |   ${rows.length} baris`,all.length);
+  const thin={style:'thin',color:{argb:'FFC9D6D1'}},border={top:thin,left:thin,bottom:thin,right:thin};
+  const h=ws.getRow(5);h.height=26;
+  all.forEach((c,i)=>{const cell=h.getCell(i+1);cell.value=c.l;cell.font={bold:true,color:{argb:'FFFFFFFF'}};cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF0F6B5C'}};cell.alignment={vertical:'middle',horizontal:'center',wrapText:true};cell.border=border;
+    const w=c.t==='no'?7:Math.min(44,Math.max(c.l.length+3,...rows.slice(0,2000).map(r=>colLen(c,r)+3),c.t==='date'?13:8));ws.getColumn(i+1).width=w;});
+  rows.forEach((r,ri)=>{const row=ws.getRow(6+ri);all.forEach((c,i)=>{const cell=row.getCell(i+1);cell.value=c.t==='no'?ri+1:cellOut(c,r);cell.border=border;cell.alignment={vertical:'top',wrapText:c.t!=='money'&&c.t!=='date',horizontal:c.t==='no'?'center':(c.t==='date'?'center':undefined)};
+    if(c.t==='money')cell.numFmt=XL_MONEY;if(c.t==='date')cell.numFmt='dd/mm/yyyy';if(ri%2)cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFF4F8F6'}};});});
+  if(total&&rows.length){const row=ws.getRow(6+rows.length);all.forEach((c,i)=>{const cell=row.getCell(i+1);cell.border=border;cell.font={bold:true};cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFDCEFE9'}};
+    if(i===1)cell.value='Total';if(c.t==='money'||c.total){const L=ws.getColumn(i+1).letter;cell.value={formula:`SUM(${L}6:${L}${5+rows.length})`,result:rows.reduce((a,r)=>a+num(c.v(r)),0)};if(c.t==='money')cell.numFmt=XL_MONEY;}});}
+  if(rows.length)ws.autoFilter={from:{row:5,column:1},to:{row:5+rows.length,column:all.length}};
+  saveBlob(new Blob([await wb.xlsx.writeBuffer()],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),`${fileSafe(title)} - ${today()}.xlsx`);
+}
+function pdfHeader(doc,title,sub){
+  const W=doc.internal.pageSize.getWidth();
+  doc.addImage(logo(),'PNG',14,9,17,17);
+  doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(22,48,43);doc.text(S.settings.perusahaan,35,13);
+  doc.setFontSize(15);doc.setTextColor(15,107,92);doc.text(title,35,20);
+  doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(75,98,92);doc.text(sub,35,25);
+  doc.setDrawColor(15,107,92);doc.setLineWidth(.5);doc.line(14,29,W-14,29);
+}
+function pdfFooters(doc){const n=doc.internal.getNumberOfPages(),W=doc.internal.pageSize.getWidth(),H=doc.internal.pageSize.getHeight();
+  for(let i=1;i<=n;i++){doc.setPage(i);doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(108,129,123);doc.text('Monitoring Karyawan',14,H-7);doc.text(`Halaman ${i} dari ${n}`,W-14,H-7,{align:'right'});}}
+function newPdf(o){if(!window.jspdf)throw new Error('Pustaka PDF gagal dimuat. Periksa koneksi internet.');return new jspdf.jsPDF({orientation:o,unit:'mm',format:'a4'});}
+function exportPdf({title,subtitle,cols,rows,total}){
+  const doc=newPdf(cols.length>5?'landscape':'portrait');
+  const fmt=(c,r)=>{const v=c.v(r);return c.t==='date'?fmtDate(v):c.t==='money'?rupiah(v):String(v??'');};
+  const sub=`${subtitle?subtitle+'   |   ':''}${printedAt()}   |   ${rows.length} baris`;
+  const body=rows.map((r,i)=>[i+1,...cols.map(c=>fmt(c,r))]);
+  const foot=total&&rows.length?[['','Total',...cols.slice(1).map(c=>c.t==='money'||c.total?{content:c.t==='money'?rupiah(rows.reduce((a,r)=>a+num(c.v(r)),0)):String(rows.reduce((a,r)=>a+num(c.v(r)),0)),styles:{halign:'right'}}:'')]]:undefined;
+  const styles={0:{halign:'center',cellWidth:10}};cols.forEach((c,i)=>{if(c.t==='money'||c.t==='num')styles[i+1]={halign:'right'};if(c.t==='date')styles[i+1]={halign:'center',cellWidth:24};});
+  doc.autoTable({head:[['No',...cols.map(c=>c.l)]],body,foot,showFoot:'lastPage',startY:33,margin:{top:33,left:14,right:14,bottom:14},theme:'grid',styles:{font:'helvetica',fontSize:cols.length>8?7.5:8.5,cellPadding:1.8,lineColor:[201,214,209],lineWidth:.15,textColor:[22,48,43],overflow:'linebreak'},headStyles:{fillColor:[15,107,92],textColor:255,fontStyle:'bold',halign:'center',valign:'middle'},footStyles:{fillColor:[220,239,233],textColor:[22,48,43],fontStyle:'bold'},alternateRowStyles:{fillColor:[244,248,246]},columnStyles:styles,didDrawPage:()=>pdfHeader(doc,title,sub)});
+  pdfFooters(doc);
+  doc.save(`${fileSafe(title)} - ${today()}.pdf`);
+}
+function slipLines(s){return {plus:[['Gaji pokok',s.gaji_pokok],['Tunjangan',s.tunjangan],['Lembur',s.lembur],['Bonus',s.bonus]],minus:[['BPJS',s.bpjs],['PPh 21',s.pph21],['Potongan lain',s.potongan_lain]]};}
+function slipPdf(s){
+  const k=emp(s.karyawan_id),L=slipLines(s),doc=newPdf('portrait'),title=`Slip Gaji ${fmtPeriod(s.periode)}`;
+  pdfHeader(doc,title,S.settings.alamat||printedAt());
+  doc.autoTable({startY:34,theme:'plain',styles:{fontSize:10,cellPadding:1},columnStyles:{0:{cellWidth:32,textColor:[75,98,92]},2:{cellWidth:32,textColor:[75,98,92]}},body:[['Nama',k.nama,'NIK',k.nik],['Jabatan',k.jabatan||'-','Departemen',k.departemen||'-']],margin:{left:14,right:14}});
+  const plus=L.plus.reduce((a,x)=>a+num(x[1]),0),minus=L.minus.reduce((a,x)=>a+num(x[1]),0);
+  const opt={theme:'grid',styles:{fontSize:10,cellPadding:2.2,lineColor:[201,214,209],lineWidth:.15},headStyles:{fillColor:[15,107,92]},footStyles:{fillColor:[220,239,233],textColor:[22,48,43]},columnStyles:{1:{halign:'right'}},margin:{left:14,right:14}};
+  doc.autoTable({...opt,startY:doc.lastAutoTable.finalY+5,head:[['Pendapatan','Jumlah']],body:L.plus.map(x=>[x[0],rupiah(x[1])]),foot:[['Total pendapatan',{content:rupiah(plus),styles:{halign:'right'}}]]});
+  doc.autoTable({...opt,startY:doc.lastAutoTable.finalY+5,head:[['Potongan','Jumlah']],body:L.minus.map(x=>[x[0],rupiah(x[1])]),foot:[['Total potongan',{content:rupiah(minus),styles:{halign:'right'}}]]});
+  let y=doc.lastAutoTable.finalY+7;const W=doc.internal.pageSize.getWidth();
+  doc.setFillColor(15,107,92);doc.roundedRect(14,y,W-28,15,2,2,'F');doc.setTextColor(255);doc.setFont('helvetica','bold');doc.setFontSize(11);doc.text('Gaji bersih diterima',19,y+9.5);doc.setFontSize(14);doc.text(rupiah(net(s)),W-19,y+9.8,{align:'right'});
+  y+=23;doc.setTextColor(75,98,92);doc.setFont('helvetica','normal');doc.setFontSize(9);if(s.catatan){doc.text(doc.splitTextToSize('Catatan: '+s.catatan,W-28),14,y);y+=8;}doc.text('Dokumen ini dibuat secara elektronik dan tidak memerlukan tanda tangan. '+printedAt(),14,y);
+  pdfFooters(doc);doc.save(fileSafe(`Slip Gaji - ${k.nama} - ${s.periode}`)+'.pdf');
+}
+async function slipExcel(s){
+  if(!window.ExcelJS)throw new Error('Pustaka Excel gagal dimuat. Periksa koneksi internet.');
+  const k=emp(s.karyawan_id),L=slipLines(s),wb=new ExcelJS.Workbook(),ws=wb.addWorksheet('Slip Gaji',{views:[{showGridLines:false}],pageSetup:{paperSize:9,fitToPage:true,fitToWidth:1,fitToHeight:0}});
+  ws.getColumn(1).width=12;ws.getColumn(2).width=16;ws.getColumn(3).width=26;ws.getColumn(4).width=22;
+  await headerXl(wb,ws,`Slip Gaji ${fmtPeriod(s.periode)}`,printedAt(),4);
+  let r=5;const put=(a,b,o={})=>{ws.mergeCells(r,1,r,3);const c=ws.getCell(r,1),d=ws.getCell(r,4);c.value=a;d.value=b;c.font=d.font={bold:!!o.b,color:{argb:o.h?'FFFFFFFF':'FF16302B'}};if(typeof b==='number')d.numFmt=XL_MONEY;d.alignment={horizontal:'right'};if(o.h||o.f)[1,2,3,4].forEach(i=>ws.getCell(r,i).fill={type:'pattern',pattern:'solid',fgColor:{argb:o.h?'FF0F6B5C':'FFDCEFE9'}});r++;};
+  put('Nama',k.nama);put('NIK',k.nik);put('Jabatan',k.jabatan||'-');put('Departemen',k.departemen||'-');r++;
+  const plus=L.plus.reduce((a,x)=>a+num(x[1]),0),minus=L.minus.reduce((a,x)=>a+num(x[1]),0);
+  put('Pendapatan','Jumlah',{b:1,h:1});L.plus.forEach(x=>put(x[0],num(x[1])));put('Total pendapatan',plus,{b:1,f:1});r++;
+  put('Potongan','Jumlah',{b:1,h:1});L.minus.forEach(x=>put(x[0],num(x[1])));put('Total potongan',minus,{b:1,f:1});r++;
+  put('Gaji bersih diterima',net(s),{b:1,h:1});
+  saveBlob(new Blob([await wb.xlsx.writeBuffer()]),fileSafe(`Slip Gaji - ${k.nama} - ${s.periode}`)+'.xlsx');
+}
+
+/* ---------- Definisi halaman ---------- */
+const NAV={
+  admin:[
+    {g:'Dashboard',i:'home',items:[['ringkasan','Ringkasan HR']]},
+    {g:'Data Karyawan',i:'users',items:[['karyawan','Daftar karyawan'],['impor','Impor & ekspor']]},
+    {g:'Cuti & Izin',i:'cal',items:[['cuti','Monitoring cuti'],['kuota','Sisa kuota tahunan']]},
+    {g:'Penggajian',i:'money',items:[['slip','Slip gaji digital']]},
+    {g:'Shift',i:'clock',items:[['shift','Pengaturan shift']]},
+    {g:'Laporan',i:'doc',items:[['lap-karyawan','Rekap karyawan'],['lap-cuti','Rekap cuti per karyawan'],['lap-gaji','Rekap gaji per periode'],['lap-shift','Rekap shift']]},
+    {g:'Pengaturan',i:'gear',items:[['pengguna','Pengguna & hak akses'],['perusahaan','Perusahaan & logo'],['log','Riwayat aktivitas']]}
+  ],
+  staff:[{g:'Data Karyawan',i:'users',items:[['karyawan','Tambah & hapus karyawan'],['impor','Impor dari template']]}],
+  karyawan:[
+    {g:'Beranda',i:'home',items:[['beranda','Ringkasan saya']]},
+    {g:'Cuti & Izin',i:'cal',items:[['cuti-saya','Pengajuan cuti'],['kuota-saya','Sisa kuota tahunan']]},
+    {g:'Penggajian',i:'money',items:[['slip-saya','Slip gaji saya']]}
+  ],
+  pending:[]
+};
+const isAdmin=()=>S.user.role==='admin';
+const COL={
+  nik:{l:'NIK',k:'nik',v:r=>r.nik},
+  nama:{l:'Nama',k:'nama',v:r=>r.nama}
+};
+const byEmp=(fn)=>r=>fn(emp(r.karyawan_id),r);
+const fOpt=(id,label,opts,all='Semua',def='')=>({id,label,opts:()=>opts(),all,def});
+const PAGES={
+  karyawan:()=>({title:'Data Karyawan',desc:isAdmin()?'Kelola biodata, status, shift, dan kuota cuti setiap karyawan.':'Portal Staff HR: Anda dapat menambahkan dan menghapus data karyawan.',
+    cols:[COL.nik,{l:'Nama',v:r=>r.nama,h:r=>`<span class="name">${esc(r.nama)}</span><span class="sub-t">${esc(r.email||'')}</span>`},{l:'Email',only:'x',v:r=>r.email||''},{l:'Telepon',only:'x',v:r=>r.telepon||''},{l:'Jabatan',v:r=>r.jabatan},{l:'Departemen',v:r=>r.departemen},{l:'Tgl masuk',t:'date',v:r=>r.tgl_masuk},{l:'Jenis',v:r=>r.jenis_karyawan},{l:'Shift',v:r=>shiftOf(r.shift_id)?.nama||'-'},{l:'Status',v:r=>r.status,h:r=>badge(r.status)}],
+    rows:f=>S.d.karyawan.filter(r=>(!f.dep||r.departemen===f.dep)&&(!f.jenis||r.jenis_karyawan===f.jenis)&&(!f.st||r.status===f.st)).sort((a,b)=>a.nama.localeCompare(b.nama)),
+    filters:[fOpt('dep','Departemen',depts),fOpt('jenis','Jenis',()=>JENIS_KARYAWAN),fOpt('st','Status',()=>['Aktif','Nonaktif'])],
+    addLabel:'Tambah karyawan',addAct:'emp-add',noExport:!isAdmin(),
+    acts:r=>(isAdmin()?`<button class="btn sm" data-act="emp-edit" data-id="${r.id}">Ubah</button>`:'')+`<button class="btn sm danger" data-act="emp-del" data-id="${r.id}">Hapus</button>`}),
+  cuti:()=>({title:'Monitoring Data Cuti Karyawan',desc:'Pantau seluruh pengajuan cuti dan izin, lalu setujui atau tolak yang masih menunggu.',
+    cols:[{l:'NIK',only:'x',v:byEmp(k=>k.nik)},{l:'Karyawan',v:byEmp(k=>k.nama),h:byEmp(k=>`<span class="name">${esc(k.nama)}</span><span class="sub-t">${esc(k.departemen)}</span>`)},{l:'Departemen',only:'x',v:byEmp(k=>k.departemen)},{l:'Jenis',v:r=>r.jenis},{l:'Mulai',t:'date',v:r=>r.mulai},{l:'Selesai',t:'date',v:r=>r.selesai},{l:'Hari',t:'num',v:r=>r.hari},{l:'Alasan',v:r=>r.alasan||''},{l:'Status',v:r=>r.status,h:r=>badge(r.status)}],
+    rows:f=>S.d.cuti.filter(r=>(!f.y||r.mulai.startsWith(f.y))&&(!f.m||+r.mulai.slice(5,7)===BULAN.indexOf(f.m)+1)&&(!f.st||r.status===f.st)&&(!f.j||r.jenis===f.j)&&(!f.dep||emp(r.karyawan_id).departemen===f.dep)).sort((a,b)=>(a.status==='Menunggu'?0:1)-(b.status==='Menunggu'?0:1)||b.mulai.localeCompare(a.mulai)),
+    filters:[fOpt('y','Tahun',years,'Semua',String(thisYear())),fOpt('m','Bulan',()=>BULAN),fOpt('st','Status',()=>STATUS_CUTI),fOpt('j','Jenis',()=>JENIS_CUTI),fOpt('dep','Departemen',depts)],
+    addLabel:'Catat cuti',addAct:'cuti-add',
+    acts:r=>(r.status==='Menunggu'?`<button class="btn sm primary" data-act="cuti-ok" data-id="${r.id}">Setujui</button><button class="btn sm" data-act="cuti-no" data-id="${r.id}">Tolak</button>`:'')+`<button class="btn sm danger" data-act="cuti-del" data-id="${r.id}">Hapus</button>`}),
+  kuota:()=>({title:'Sisa Kuota Cuti Tahunan',desc:'Satu lingkaran mewakili satu hari kuota Cuti Tahunan.',legend:true,
+    xTitle:f=>`Sisa Kuota Cuti Tahunan ${f.y||thisYear()}`,
+    cols:[COL.nik,{l:'Nama',v:r=>r.nama,h:r=>`<span class="name">${esc(r.nama)}</span>`},{l:'Departemen',v:r=>r.departemen},{l:'Pemakaian',only:'s',h:r=>punch(r.q),v:()=>''},{l:'Kuota',t:'num',v:r=>r.q.kuota,total:1},{l:'Terpakai',t:'num',v:r=>r.q.pakai,total:1},{l:'Menunggu',t:'num',v:r=>r.q.tunggu,total:1},{l:'Sisa',t:'num',v:r=>r.q.sisa,total:1,h:r=>`<span class="sisa ${r.q.sisa<=2?'low':''}">${r.q.sisa}</span>`}],
+    rows:f=>S.d.karyawan.filter(k=>k.status==='Aktif'&&(!f.dep||k.departemen===f.dep)).map(k=>({...k,q:kuotaOf(k,f.y||thisYear())})).filter(r=>!f.s||(f.s==='Hampir habis (2 hari atau kurang)'?r.q.sisa<=2:r.q.sisa>2)).sort((a,b)=>a.q.sisa-b.q.sisa||a.nama.localeCompare(b.nama)),
+    filters:[fOpt('y','Tahun',years,null,String(thisYear())),fOpt('dep','Departemen',depts),fOpt('s','Sisa',()=>['Hampir habis (2 hari atau kurang)','Lebih dari 2 hari'])],total:true,
+    acts:r=>`<button class="btn sm" data-act="quota-set" data-id="${r.id}">Atur kuota</button>`}),
+  slip:()=>({title:'Slip Gaji Digital',desc:'Slip yang disimpan di sini langsung tampil di akun karyawan bersangkutan.',
+    xTitle:f=>f.p?`Slip Gaji ${fmtPeriod(f.p)}`:'Daftar Slip Gaji',
+    cols:[{l:'NIK',only:'x',v:byEmp(k=>k.nik)},{l:'Karyawan',v:byEmp(k=>k.nama),h:byEmp(k=>`<span class="name">${esc(k.nama)}</span><span class="sub-t">${esc(k.departemen)}</span>`)},{l:'Periode',v:r=>fmtPeriod(r.periode)},{l:'Gaji pokok',t:'money',v:r=>r.gaji_pokok},{l:'Tunjangan',t:'money',only:'x',v:r=>r.tunjangan},{l:'Lembur',t:'money',only:'x',v:r=>r.lembur},{l:'Bonus',t:'money',only:'x',v:r=>r.bonus},{l:'Potongan',t:'money',v:r=>num(r.bpjs)+num(r.pph21)+num(r.potongan_lain)},{l:'Gaji bersih',t:'money',v:r=>net(r),h:r=>`<b>${rupiah(net(r))}</b>`}],
+    rows:f=>S.d.slip_gaji.filter(r=>(!f.p||r.periode===f.p)&&(!f.dep||emp(r.karyawan_id).departemen===f.dep)).sort((a,b)=>b.periode.localeCompare(a.periode)||emp(a.karyawan_id).nama.localeCompare(emp(b.karyawan_id).nama)),
+    filters:[fOpt('p','Periode',()=>periods().map(p=>({v:p,t:fmtPeriod(p)}))),fOpt('dep','Departemen',depts)],total:true,
+    addLabel:'Buat slip',addAct:'slip-add',
+    acts:r=>`<button class="btn sm" data-act="slip-view" data-id="${r.id}">Lihat</button><button class="btn sm" data-act="slip-edit" data-id="${r.id}">Ubah</button><button class="btn sm danger" data-act="slip-del" data-id="${r.id}">Hapus</button>`}),
+  shift:()=>({title:'Data Shift',desc:'Atur jam kerja dan tentukan karyawan pada setiap shift.',
+    cols:[{l:'Nama shift',v:r=>r.nama,h:r=>`<span class="name">${esc(r.nama)}</span>`},{l:'Jam mulai',v:r=>fmtTime(r.jam_mulai)},{l:'Jam selesai',v:r=>fmtTime(r.jam_selesai)},{l:'Keterangan',v:r=>r.keterangan||''},{l:'Jumlah karyawan',t:'num',v:r=>S.d.karyawan.filter(k=>k.shift_id===r.id).length,total:1}],
+    rows:()=>[...S.d.shift].sort((a,b)=>fmtTime(a.jam_mulai).localeCompare(fmtTime(b.jam_mulai))),filters:[],
+    addLabel:'Tambah shift',addAct:'shift-add',
+    acts:r=>`<button class="btn sm primary" data-act="shift-assign" data-id="${r.id}">Atur karyawan</button><button class="btn sm" data-act="shift-edit" data-id="${r.id}">Ubah</button><button class="btn sm danger" data-act="shift-del" data-id="${r.id}">Hapus</button>`}),
+  'lap-karyawan':()=>({title:'Laporan Rekap Karyawan per Departemen',desc:'Komposisi karyawan di setiap departemen.',total:true,
+    cols:[{l:'Departemen',v:r=>r.d},{l:'Total',t:'num',v:r=>r.n,total:1},{l:'Aktif',t:'num',v:r=>r.a,total:1},{l:'Nonaktif',t:'num',v:r=>r.n-r.a,total:1},...JENIS_KARYAWAN.map(j=>({l:j,t:'num',v:r=>r[j],total:1}))],
+    rows:()=>{const m={};S.d.karyawan.forEach(k=>{const d=k.departemen||'(Tanpa departemen)';const o=m[d]||={d,n:0,a:0,Tetap:0,Kontrak:0,Magang:0,Harian:0};o.n++;if(k.status==='Aktif')o.a++;o[k.jenis_karyawan]++;});return Object.values(m).sort((a,b)=>b.n-a.n);},filters:[]}),
+  'lap-cuti':()=>({title:'Laporan Rekap Cuti per Karyawan',desc:'Total hari cuti dan izin yang disetujui per karyawan.',total:true,
+    xTitle:f=>`Laporan Rekap Cuti ${f.y||thisYear()}`,
+    cols:[COL.nik,{l:'Nama',v:r=>r.nama},{l:'Departemen',v:r=>r.departemen},...JENIS_CUTI.map(j=>({l:j,t:'num',v:r=>r.c[j],total:1})),{l:'Total hari',t:'num',v:r=>r.tot,total:1,h:r=>`<b>${r.tot}</b>`}],
+    rows:f=>{const y=f.y||String(thisYear());return S.d.karyawan.filter(k=>!f.dep||k.departemen===f.dep).map(k=>{const c=Object.fromEntries(JENIS_CUTI.map(j=>[j,0]));S.d.cuti.forEach(x=>{if(x.karyawan_id===k.id&&x.status==='Disetujui'&&x.mulai.startsWith(y))c[x.jenis]+=num(x.hari);});return {...k,c,tot:Object.values(c).reduce((a,b)=>a+b,0)};}).sort((a,b)=>b.tot-a.tot||a.nama.localeCompare(b.nama));},
+    filters:[fOpt('y','Tahun',years,null,String(thisYear())),fOpt('dep','Departemen',depts)]}),
+  'lap-gaji':()=>({title:'Laporan Rekap Gaji per Periode',desc:'Total pengeluaran gaji pada setiap periode.',total:true,
+    cols:[{l:'Periode',v:r=>fmtPeriod(r.p)},{l:'Jumlah slip',t:'num',v:r=>r.n,total:1},{l:'Pendapatan',t:'money',v:r=>r.plus},{l:'Potongan',t:'money',v:r=>r.minus},{l:'Gaji bersih',t:'money',v:r=>r.net,h:r=>`<b>${rupiah(r.net)}</b>`}],
+    rows:()=>{const m={};S.d.slip_gaji.forEach(s=>{const o=m[s.periode]||={p:s.periode,n:0,plus:0,minus:0,net:0};o.n++;o.net+=net(s);o.minus+=num(s.bpjs)+num(s.pph21)+num(s.potongan_lain);o.plus+=num(s.gaji_pokok)+num(s.tunjangan)+num(s.lembur)+num(s.bonus);});return Object.values(m).sort((a,b)=>b.p.localeCompare(a.p));},filters:[]}),
+  'lap-shift':()=>({title:'Laporan Rekap Shift',desc:'Daftar karyawan pada setiap shift.',
+    cols:[{l:'Shift',v:r=>r.nama},{l:'Jam kerja',v:r=>r.jam},{l:'Jumlah',t:'num',v:r=>r.list.length},{l:'Karyawan',v:r=>r.list.join(', ')||'-'}],
+    rows:()=>[...S.d.shift.map(s=>({nama:s.nama,jam:`${fmtTime(s.jam_mulai)} - ${fmtTime(s.jam_selesai)}`,list:S.d.karyawan.filter(k=>k.shift_id===s.id).map(k=>k.nama)})),{nama:'Belum ada shift',jam:'-',list:S.d.karyawan.filter(k=>!shiftOf(k.shift_id)).map(k=>k.nama)}],filters:[]}),
+  pengguna:()=>({title:'Daftar Pengguna',desc:'Tentukan peran setiap akun. Admin HR memiliki akses penuh; Staff HR hanya menambah dan menghapus data karyawan.',
+    cols:[{l:'Email',v:r=>r.email,h:r=>`<span class="name">${esc(r.email)}</span><span class="sub-t">${esc(r.nama||'')}</span>`},{l:'Peran',v:r=>ROLE_LABEL[r.role],h:r=>badge(r.role)},{l:'Terdaftar',t:'date',v:r=>(r.created_at||'').slice(0,10)}],
+    rows:f=>S.d.profil.filter(r=>!f.r||ROLE_LABEL[r.role]===f.r).sort((a,b)=>a.email.localeCompare(b.email)),filters:[fOpt('r','Peran',()=>Object.values(ROLE_LABEL))],
+    acts:r=>r.id===S.user.id?'<span class="muted small">Akun Anda</span>':`<button class="btn sm" data-act="role-set" data-id="${r.id}">Ubah peran</button>`}),
+  log:()=>({title:'Riwayat Aktivitas Data Karyawan',desc:'Catatan penambahan dan penghapusan karyawan, termasuk oleh Staff HR.',
+    cols:[{l:'Waktu',v:r=>fmtDateTime(r.waktu)},{l:'Pelaku',v:r=>r.pelaku},{l:'Aksi',v:r=>r.aksi},{l:'Detail',v:r=>r.detail}],
+    rows:()=>[...S.d.log_aktivitas].sort((a,b)=>b.waktu.localeCompare(a.waktu)),filters:[]}),
+  'cuti-saya':()=>({title:'Pengajuan Cuti Saya',desc:'Ajukan cuti atau izin, lalu pantau statusnya di sini.',
+    cols:[{l:'Jenis',v:r=>r.jenis,h:r=>`<span class="name">${esc(r.jenis)}</span>`},{l:'Mulai',t:'date',v:r=>r.mulai},{l:'Selesai',t:'date',v:r=>r.selesai},{l:'Hari',t:'num',v:r=>r.hari},{l:'Alasan',v:r=>r.alasan||''},{l:'Status',v:r=>r.status,h:r=>badge(r.status)},{l:'Catatan HR',v:r=>r.catatan||''}],
+    rows:f=>S.d.cuti.filter(r=>(!f.y||r.mulai.startsWith(f.y))&&(!f.st||r.status===f.st)).sort((a,b)=>b.mulai.localeCompare(a.mulai)),
+    filters:[fOpt('y','Tahun',years),fOpt('st','Status',()=>STATUS_CUTI)],addLabel:'Ajukan cuti',addAct:'cuti-ajukan',
+    acts:r=>r.status==='Menunggu'?`<button class="btn sm danger" data-act="cuti-cancel" data-id="${r.id}">Batalkan</button>`:''}),
+  'slip-saya':()=>({title:'Slip Gaji Saya',desc:'Lihat dan unduh slip gaji Anda per periode.',
+    cols:[{l:'Periode',v:r=>fmtPeriod(r.periode),h:r=>`<span class="name">${esc(fmtPeriod(r.periode))}</span>`},{l:'Pendapatan',t:'money',v:r=>num(r.gaji_pokok)+num(r.tunjangan)+num(r.lembur)+num(r.bonus)},{l:'Potongan',t:'money',v:r=>num(r.bpjs)+num(r.pph21)+num(r.potongan_lain)},{l:'Gaji bersih',t:'money',v:r=>net(r),h:r=>`<b>${rupiah(net(r))}</b>`}],
+    rows:()=>[...S.d.slip_gaji].sort((a,b)=>b.periode.localeCompare(a.periode)),filters:[],
+    acts:r=>`<button class="btn sm primary" data-act="slip-view" data-id="${r.id}">Lihat & unduh</button>`})
+};
+
+/* ---------- Render daftar ---------- */
+let CUR=null;
+function initF(p,id){if(!F[id]){F[id]={q:'',page:1};(p.filters||[]).forEach(x=>F[id][x.id]=x.def||'');}return F[id];}
+function filtered(p,id){const f=F[id];let rows=p.rows(f);const q=f.q.trim().toLowerCase();
+  if(q){const cs=p.cols.filter(c=>c.only!=='s');rows=rows.filter(r=>cs.some(c=>String(c.v(r)??'').toLowerCase().includes(q)));}return rows;}
+function dlMenu(){return `<div class="dd"><button class="btn" data-act="dd" aria-haspopup="true" aria-expanded="false">Unduh ${chev}</button><div class="menu"><button data-act="exp" data-f="xlsx">Unduh Excel (.xlsx)</button><button data-act="exp" data-f="pdf">Unduh PDF (.pdf)</button></div></div>`;}
+function renderList(id){
+  const p=PAGES[id]();CUR={id,p};const f=initF(p,id);
+  $('#view').innerHTML=`<div class="page-h"><div><h1>${esc(p.title)}</h1><p>${esc(p.desc||'')}</p></div><div class="tools">${p.noExport?'':dlMenu()}${p.addAct?`<button class="btn primary" data-act="${p.addAct}">${esc(p.addLabel)}</button>`:''}</div></div>
+  <div class="panel"><div class="filters"><label class="fld grow">Cari<input type="search" id="q" value="${esc(f.q)}" placeholder="Ketik untuk mencari…"></label>
+  ${(p.filters||[]).map(x=>{const opts=x.opts().map(o=>typeof o==='object'?o:{v:o,t:o});return `<label class="fld">${esc(x.label)}<select data-filter="${x.id}">${x.all?`<option value="">${x.all}</option>`:''}${opts.map(o=>`<option value="${esc(o.v)}" ${String(f[x.id])===String(o.v)?'selected':''}>${esc(o.t)}</option>`).join('')}</select></label>`;}).join('')}</div>
+  ${p.legend?`<div class="panel-b" style="padding-bottom:0"><div class="legend"><span><span class="punch"><i class="used"></i></span>Terpakai</span><span><span class="punch"><i class="wait"></i></span>Menunggu persetujuan</span><span><span class="punch"><i></i></span>Tersisa</span></div></div>`:''}
+  <div id="tbl"></div></div>`;
+  drawTable();
+}
+function drawTable(){
+  const {id,p}=CUR,f=F[id],all=filtered(p,id),size=25,pages=Math.max(1,Math.ceil(all.length/size));
+  f.page=Math.min(f.page,pages);const rows=all.slice((f.page-1)*size,f.page*size);
+  const cols=p.cols.filter(c=>c.only!=='x');
+  if(!all.length){$('#tbl').innerHTML=`<div class="empty"><b>Belum ada data yang cocok</b>${p.addAct?'Tambahkan data baru atau ubah filter.':'Ubah filter atau kata pencarian.'}</div>`;return;}
+  const nc=c=>c.t==='money'||c.t==='num'?'num':'';
+  const body=rows.map(r=>`<tr>${cols.map(c=>`<td class="${nc(c)}" data-l="${esc(c.l)}"><span>${c.h?c.h(r):esc(c.t==='date'?fmtDate(c.v(r)):c.t==='money'?rupiah(c.v(r)):c.v(r))}</span></td>`).join('')}${p.acts?`<td class="acts-c"><div class="acts">${p.acts(r)}</div></td>`:''}</tr>`).join('');
+  $('#tbl').innerHTML=`<div class="t-wrap"><table class="cards"><thead><tr>${cols.map(c=>`<th class="${nc(c)}">${esc(c.l)}</th>`).join('')}${p.acts?'<th class="right">Aksi</th>':''}</tr></thead><tbody>${body}</tbody></table></div>
+  <div class="pager"><span>${all.length} baris</span>${pages>1?`<div><button class="btn sm" data-act="pg" data-d="-1" ${f.page<=1?'disabled':''}>Sebelumnya</button><span style="align-self:center">${f.page} / ${pages}</span><button class="btn sm" data-act="pg" data-d="1" ${f.page>=pages?'disabled':''}>Berikutnya</button></div>`:''}</div>`;
+}
+function exportDef(id){
+  const p=PAGES[id]();const f=initF(p,id);
+  const parts=(p.filters||[]).filter(x=>f[x.id]).filter(x=>!(p.xTitle&&(x.id==='y'||x.id==='p'))).map(x=>{const o=x.opts().map(o=>typeof o==='object'?o:{v:o,t:o}).find(o=>String(o.v)===String(f[x.id]));return `${x.label}: ${o?o.t:f[x.id]}`;});
+  if(f.q.trim())parts.push(`Pencarian: ${f.q.trim()}`);
+  return {title:p.xTitle?p.xTitle(f):p.title,subtitle:parts.join(', '),cols:p.cols.filter(c=>c.only!=='s'),rows:filtered(p,id),total:p.total};
+}
+async function doExport(id,fmt){
+  try{const d=exportDef(id);if(!d.rows.length){toast('Tidak ada data untuk diunduh pada filter ini.',1);return;}
+    if(fmt==='xlsx')await exportExcel(d);else exportPdf(d);toast(`${d.title} berhasil diunduh.`);}catch(e){console.error(e);toast(friendly(e),1);}
+}
+
+/* ---------- Dashboard ---------- */
+function renderRingkasan(){
+  const K=S.d.karyawan,aktif=K.filter(k=>k.status==='Aktif'),off=S.d.cuti.filter(isOffToday),wait=S.d.cuti.filter(c=>c.status==='Menunggu');
+  const y=thisYear(),qs=aktif.map(k=>({k,q:kuotaOf(k,y)})),avg=qs.length?(qs.reduce((a,x)=>a+x.q.sisa,0)/qs.length).toFixed(1).replace('.',','):'0';
+  const months=BULAN.map((b,i)=>({b:b.slice(0,3),n:S.d.cuti.filter(c=>c.status==='Disetujui'&&+c.mulai.slice(0,4)===y&&+c.mulai.slice(5,7)===i+1).reduce((a,c)=>a+num(c.hari),0)}));
+  const mx=Math.max(1,...months.map(m=>m.n)),nowM=new Date().getMonth();
+  const dm={};K.forEach(k=>{const d=k.departemen||'Lainnya';dm[d]=(dm[d]||0)+1;});const ds=Object.entries(dm).sort((a,b)=>b[1]-a[1]),dx=Math.max(1,...ds.map(d=>d[1]));
+  const low=qs.filter(x=>x.q.sisa<=2).sort((a,b)=>a.q.sisa-b.q.sisa).slice(0,6);
+  const emptyRow=t=>`<div class="empty" style="padding:26px 18px">${t}</div>`;
+  $('#view').innerHTML=`<div class="page-h"><div><h1>Ringkasan HR</h1><p>${esc(S.settings.perusahaan)}, ${fmtDate(today())}</p></div></div>
+  <div class="today"><a href="#/karyawan"><b>${K.length}</b><span>Total karyawan</span></a><a href="#/karyawan"><b>${aktif.length}</b><span>Karyawan aktif</span></a><a href="#/cuti"><b>${off.length}</b><span>Cuti atau izin hari ini</span></a><a href="#/cuti" class="${wait.length?'hot':''}"><b>${wait.length}</b><span>Menunggu persetujuan</span></a><a href="#/kuota"><b>${avg}</b><span>Rata-rata sisa kuota (hari)</span></a></div>
+  <div class="grid2">
+   <section class="panel"><div class="panel-h"><h2>Menunggu persetujuan</h2><a class="small" href="#/cuti">Lihat semua</a></div>${wait.slice(0,5).map(c=>{const k=emp(c.karyawan_id);return `<div class="row-i"><div><span class="name">${esc(k.nama)}</span><span class="sub-t">${esc(c.jenis)}, ${fmtDate(c.mulai)} (${c.hari} hari)</span></div><div class="acts"><button class="btn sm primary" data-act="cuti-ok" data-id="${c.id}">Setujui</button><button class="btn sm" data-act="cuti-no" data-id="${c.id}">Tolak</button></div></div>`;}).join('')||emptyRow('Semua pengajuan sudah diproses.')}</section>
+   <section class="panel"><div class="panel-h"><h2>Tidak masuk hari ini</h2></div>${off.map(c=>{const k=emp(c.karyawan_id);return `<div class="row-i"><div><span class="name">${esc(k.nama)}</span><span class="sub-t">${esc(k.departemen)}</span></div><div class="right"><span class="badge info">${esc(c.jenis)}</span><span class="sub-t">sampai ${fmtDate(c.selesai)}</span></div></div>`;}).join('')||emptyRow('Semua karyawan masuk hari ini.')}</section>
+   <section class="panel"><div class="panel-h"><h2>Hari cuti dan izin disetujui, ${y}</h2></div><div class="panel-b"><div class="chart" role="img" aria-label="Grafik hari cuti per bulan: ${months.map(m=>m.b+' '+m.n).join(', ')}">${months.map((m,i)=>`<div class="bar-c ${i===nowM?'now':''}" title="${BULAN[i]}: ${m.n} hari">${m.n?`<u>${m.n}</u>`:''}<div class="bar" style="height:${m.n/mx*72}%"></div><small>${m.b}</small></div>`).join('')}</div></div></section>
+   <section class="panel"><div class="panel-h"><h2>Karyawan per departemen</h2></div><div class="panel-b">${ds.map(([d,n])=>`<div class="hbar" title="${esc(d)}: ${n} karyawan"><span>${esc(d)}</span><div><i style="width:${n/dx*100}%"></i></div><b>${n}</b></div>`).join('')||emptyRow('Belum ada data karyawan.')}</div></section>
+   <section class="panel" style="grid-column:1/-1"><div class="panel-h"><h2>Kuota hampir habis</h2><a class="small" href="#/kuota">Lihat semua</a></div>${low.map(x=>`<div class="row-i"><div><span class="name">${esc(x.k.nama)}</span><span class="sub-t">${esc(x.k.departemen)}</span></div><div>${punch(x.q)}</div><span class="sisa low">${x.q.sisa}</span></div>`).join('')||emptyRow('Tidak ada karyawan dengan sisa kuota 2 hari atau kurang.')}</section>
+  </div>`;
+}
+function renderBeranda(){
+  const k=myEmp();if(!k){$('#view').innerHTML=`<div class="panel empty"><b>Data karyawan Anda belum ditemukan</b>Minta HR memastikan email ${esc(S.user.email)} tercatat pada data karyawan.</div>`;return;}
+  const q=kuotaOf(k,thisYear()),sh=shiftOf(k.shift_id),last=[...S.d.slip_gaji].sort((a,b)=>b.periode.localeCompare(a.periode))[0],wait=S.d.cuti.filter(c=>c.status==='Menunggu').length;
+  $('#view').innerHTML=`<div class="page-h"><div><h1>Halo, ${esc(k.nama)}</h1><p>${esc(k.jabatan)}${k.departemen?', '+esc(k.departemen):''}</p></div><div class="tools"><button class="btn primary" data-act="cuti-ajukan">Ajukan cuti</button></div></div>
+  <div class="grid2"><section class="panel" style="grid-column:1/-1"><div class="panel-h"><h2>Kuota Cuti Tahunan ${thisYear()}</h2><span class="sisa ${q.sisa<=2?'low':''}">${q.sisa} hari tersisa</span></div><div class="panel-b">${punch(q)}<p class="muted small" style="margin-top:9px">${q.pakai} hari terpakai, ${q.tunggu} hari menunggu persetujuan, dari kuota ${q.kuota} hari.</p></div></section>
+  <section class="panel"><div class="panel-h"><h2>Shift saya</h2></div><div class="panel-b">${sh?`<p class="name">${esc(sh.nama)}</p><p class="muted">${fmtTime(sh.jam_mulai)} sampai ${fmtTime(sh.jam_selesai)}</p>`:'<p class="muted">Shift belum ditentukan.</p>'}<p class="muted small" style="margin-top:8px">Pengajuan menunggu: ${wait}</p></div></section>
+  <section class="panel"><div class="panel-h"><h2>Slip gaji terbaru</h2></div><div class="panel-b">${last?`<p class="name">${fmtPeriod(last.periode)}</p><p style="font-size:22px;font-weight:800">${rupiah(net(last))}</p><button class="btn sm" style="margin-top:8px" data-act="slip-view" data-id="${last.id}">Lihat & unduh</button>`:'<p class="muted">Belum ada slip gaji.</p>'}</div></section></div>`;
+}
+function renderKuotaSaya(){
+  const k=myEmp();if(!k)return renderBeranda();
+  const list=years().map(y=>({y,q:kuotaOf(k,y)}));
+  $('#view').innerHTML=`<div class="page-h"><div><h1>Sisa Kuota Cuti Tahunan</h1><p>Hanya Cuti Tahunan yang mengurangi kuota. Sisa dihitung dari cuti yang sudah disetujui.</p></div></div>
+  <div class="panel">${list.map(({y,q})=>`<div class="row-i" style="flex-wrap:wrap"><div><span class="name">${y}</span><span class="sub-t">${q.pakai} terpakai, ${q.tunggu} menunggu, kuota ${q.kuota}</span></div><div>${punch(q)}</div><span class="sisa ${q.sisa<=2?'low':''}">${q.sisa} hari</span></div>`).join('')}</div>`;
+}
+
+/* ---------- Impor ---------- */
+const IMPORT_DEF={
+  karyawan:{label:'Karyawan',table:'karyawan',file:'Template Impor Data Karyawan',cols:[
+    {h:'NIK',k:'nik',req:1,eg:'CONTOH-001',fmt:'Teks unik untuk setiap karyawan',text:1},{h:'Nama',k:'nama',req:1,eg:'Andi Wijaya',fmt:'Nama lengkap'},{h:'Email',k:'email',eg:'andi@perusahaan.co.id',fmt:'Dipakai karyawan untuk mendaftar akun'},{h:'Telepon',k:'telepon',eg:'081234567890',fmt:'Teks',text:1},{h:'Jabatan',k:'jabatan',eg:'Staf Administrasi',fmt:'Teks'},{h:'Departemen',k:'departemen',eg:'Administrasi',fmt:'Teks'},{h:'Tanggal Masuk',k:'tgl_masuk',eg:'2024-01-15',fmt:'YYYY-MM-DD atau DD/MM/YYYY',date:1},{h:'Jenis Karyawan',k:'jenis_karyawan',eg:'Tetap',fmt:JENIS_KARYAWAN.join(', '),list:JENIS_KARYAWAN},{h:'Status',k:'status',eg:'Aktif',fmt:'Aktif, Nonaktif',list:['Aktif','Nonaktif']},{h:'Shift',k:'_shift',eg:'Reguler',fmt:'Nama shift yang sudah ada; boleh kosong'},{h:'Kuota Cuti',k:'kuota_cuti',eg:12,fmt:'Angka; kosong memakai kuota standar'}]},
+  cuti:{label:'Cuti',table:'cuti',file:'Template Impor Data Cuti',cols:[
+    {h:'NIK',k:'_nik',req:1,eg:'CONTOH-001',fmt:'NIK karyawan yang sudah terdaftar',text:1},{h:'Jenis',k:'jenis',req:1,eg:'Cuti Tahunan',fmt:JENIS_CUTI.join(', '),list:JENIS_CUTI},{h:'Tanggal Mulai',k:'mulai',req:1,eg:'2026-03-02',fmt:'YYYY-MM-DD atau DD/MM/YYYY',date:1},{h:'Tanggal Selesai',k:'selesai',req:1,eg:'2026-03-04',fmt:'YYYY-MM-DD atau DD/MM/YYYY',date:1},{h:'Alasan',k:'alasan',eg:'Acara keluarga',fmt:'Teks'},{h:'Status',k:'status',eg:'Disetujui',fmt:STATUS_CUTI.join(', '),list:STATUS_CUTI}]},
+  slip_gaji:{label:'Slip gaji',table:'slip_gaji',file:'Template Impor Slip Gaji',cols:[
+    {h:'NIK',k:'_nik',req:1,eg:'CONTOH-001',fmt:'NIK karyawan yang sudah terdaftar',text:1},{h:'Periode',k:'periode',req:1,eg:'2026-10',fmt:'YYYY-MM, contoh 2026-10',text:1},{h:'Gaji Pokok',k:'gaji_pokok',req:1,eg:5000000,fmt:'Angka tanpa Rp',n:1},{h:'Tunjangan',k:'tunjangan',eg:750000,fmt:'Angka',n:1},{h:'Lembur',k:'lembur',eg:250000,fmt:'Angka',n:1},{h:'Bonus',k:'bonus',eg:0,fmt:'Angka',n:1},{h:'BPJS',k:'bpjs',eg:200000,fmt:'Angka',n:1},{h:'PPh 21',k:'pph21',eg:125000,fmt:'Angka',n:1},{h:'Potongan Lain',k:'potongan_lain',eg:0,fmt:'Angka',n:1},{h:'Catatan',k:'catatan',eg:'',fmt:'Teks'}]},
+  shift:{label:'Shift',table:'shift',file:'Template Impor Data Shift',cols:[
+    {h:'Nama Shift',k:'nama',req:1,eg:'CONTOH Pagi',fmt:'Nama unik',text:1},{h:'Jam Mulai',k:'jam_mulai',req:1,eg:'08:00',fmt:'HH:MM (24 jam)',time:1,text:1},{h:'Jam Selesai',k:'jam_selesai',req:1,eg:'17:00',fmt:'HH:MM (24 jam)',time:1,text:1},{h:'Keterangan',k:'keterangan',eg:'Senin sampai Jumat',fmt:'Teks'}]}
+};
+const EXPORT_OF={karyawan:'karyawan',cuti:'cuti',slip_gaji:'slip',shift:'shift'};
+const imp={kind:'karyawan',rows:null,name:''};
+const importKinds=()=>isAdmin()?Object.keys(IMPORT_DEF):['karyawan'];
+function renderImpor(){
+  if(!importKinds().includes(imp.kind))imp.kind='karyawan';
+  const D=IMPORT_DEF[imp.kind],admin=isAdmin(),show=D.cols.slice(0,7);
+  $('#view').innerHTML=`<div class="page-h"><div><h1>${admin?'Impor & Ekspor Data':'Impor Data Karyawan'}</h1><p>Unduh template, isi datanya, lalu unggah kembali. Baris contoh otomatis dilewati.</p></div></div>
+  ${admin?`<div class="seg" role="tablist">${importKinds().map(k=>`<button role="tab" aria-selected="${k===imp.kind}" class="${k===imp.kind?'on':''}" data-act="imp-kind" data-k="${k}">${IMPORT_DEF[k].label}</button>`).join('')}</div>`:''}
+  <div class="panel" style="margin-bottom:18px">
+   <div class="step"><b>1</b><div><h2>Unduh template</h2><p>Template berisi satu baris contoh, daftar pilihan, dan lembar petunjuk.</p><button class="btn primary" data-act="tpl">Unduh template ${esc(D.label)}</button>
+    <div class="t-wrap" style="margin-top:12px"><table class="sample"><thead><tr>${show.map(c=>`<th>${esc(c.h)}${c.req?' <span class="req">*</span>':''}</th>`).join('')}</tr></thead><tbody><tr>${show.map(c=>`<td>${esc(c.eg)}</td>`).join('')}</tr></tbody></table></div>
+    <p class="small" style="margin:7px 0 0">Tanda <span class="req">*</span> wajib diisi.${D.cols.length>7?` Kolom lengkap (${D.cols.length} kolom) ada di dalam template.`:''}</p></div></div>
+   <div class="step"><b>2</b><div><h2>Unggah file</h2><p>Format .xlsx atau .csv.</p><label class="drop" id="drop"><input type="file" id="imp-file" accept=".xlsx,.csv"><b>Pilih file</b> atau seret ke sini</label></div></div>
+   <div class="step"><b>3</b><div><h2>Periksa dan simpan</h2><div id="imp-preview"><p>Hasil pemeriksaan muncul setelah file diunggah.</p></div></div></div>
+  </div>
+  ${admin?`<section class="panel"><div class="panel-h"><h2>Ekspor ${esc(D.label.toLowerCase())}</h2><div class="tools"><button class="btn" data-act="exp-k" data-f="xlsx">Unduh Excel</button><button class="btn" data-act="exp-k" data-f="pdf">Unduh PDF</button></div></div></section>`:''}`;
+  if(imp.rows)drawPreview();
+}
+async function downloadTemplate(){
+  if(!window.ExcelJS)throw new Error('Pustaka Excel gagal dimuat. Periksa koneksi internet.');
+  const D=IMPORT_DEF[imp.kind],wb=new ExcelJS.Workbook(),ws=wb.addWorksheet('Template',{views:[{state:'frozen',ySplit:1}]});
+  ws.columns=D.cols.map(c=>({width:Math.max(c.h.length+6,String(c.eg).length+4,c.list?16:14)}));
+  D.cols.forEach((c,i)=>{const col=i+1,h=ws.getCell(1,col);h.value=c.h+(c.req?' *':'');h.font={bold:true,color:{argb:'FFFFFFFF'}};h.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF0F6B5C'}};h.alignment={vertical:'middle',horizontal:'center'};
+    const e=ws.getCell(2,col);e.value=c.eg===''?null:c.eg;e.font={italic:true,color:{argb:'FF8A5C00'}};e.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFDF1D7'}};
+    for(let r=2;r<=500;r++){const x=ws.getCell(r,col);if(c.text||c.date)x.numFmt='@';if(c.list)x.dataValidation={type:'list',allowBlank:true,formulae:['"'+c.list.join(',')+'"'],showErrorMessage:true,errorTitle:'Pilihan tidak valid',error:'Pilih dari daftar: '+c.list.join(', ')};}
+  });
+  ws.getRow(1).height=26;
+  const g=wb.addWorksheet('Petunjuk',{views:[{showGridLines:false}]});
+  g.columns=[{width:22},{width:12},{width:58},{width:26}];
+  g.addRow([`Petunjuk ${D.file}`]).font={bold:true,size:14,color:{argb:'FF0F6B5C'}};
+  g.addRow(['Isi data mulai baris 3 pada lembar Template, atau timpa baris contoh. Baris dengan NIK/nama berawalan CONTOH tidak disimpan.']);g.addRow([]);
+  const h=g.addRow(['Kolom','Wajib','Format','Contoh']);h.eachCell(c=>{c.font={bold:true,color:{argb:'FFFFFFFF'}};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF0F6B5C'}};});
+  D.cols.forEach(c=>g.addRow([c.h,c.req?'Ya':'Tidak',c.fmt,c.eg]));
+  saveBlob(new Blob([await wb.xlsx.writeBuffer()]),D.file+'.xlsx');
+}
+function cellVal(v){if(v==null)return '';if(v instanceof Date)return v;if(typeof v==='object'){if(v.richText)return v.richText.map(t=>t.text).join('');if(v.text!=null)return typeof v.text==='object'?cellVal(v.text):v.text;if(v.result!=null)return v.result;return '';}return v;}
+function parseCsv(t){t=t.replace(/^﻿/,'');const first=t.split(/\r?\n/)[0]||'';const sep=(first.match(/;/g)||[]).length>(first.match(/,/g)||[]).length?';':',';const out=[];let row=[],s='',q=false;
+  for(let i=0;i<t.length;i++){const c=t[i];if(q){if(c==='"'){if(t[i+1]==='"'){s+='"';i++;}else q=false;}else s+=c;}else if(c==='"')q=true;else if(c===sep){row.push(s);s='';}else if(c==='\n'||c==='\r'){if(c==='\r'&&t[i+1]==='\n')i++;row.push(s);s='';out.push(row);row=[];}else s+=c;}
+  if(s||row.length){row.push(s);out.push(row);}return out;}
+function parseDate(v){
+  if(v===''||v==null)return '';
+  if(v instanceof Date)return `${v.getUTCFullYear()}-${pad(v.getUTCMonth()+1)}-${pad(v.getUTCDate())}`;
+  if(typeof v==='number'){const d=new Date(Date.UTC(1899,11,30)+v*864e5);return parseDate(d);}
+  const s=String(v).trim();let m,y,mo,d;
+  if(m=s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/))[y,mo,d]=[+m[1],+m[2],+m[3]];
+  else if(m=s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})/))[d,mo,y]=[+m[1],+m[2],+m[3]];
+  else return null;
+  const dt=new Date(Date.UTC(y,mo-1,d));if(dt.getUTCMonth()!==mo-1||dt.getUTCDate()!==d)return null;
+  return `${y}-${pad(mo)}-${pad(d)}`;
+}
+function parseTime(v){if(v===''||v==null)return '';if(v instanceof Date)return `${pad(v.getUTCHours())}:${pad(v.getUTCMinutes())}`;
+  if(typeof v==='number'){const m=Math.round(v*1440)%1440;return `${pad(Math.floor(m/60))}:${pad(m%60)}`;}
+  const m=String(v).trim().match(/^(\d{1,2})[:.](\d{2})/);if(!m||+m[1]>23||+m[2]>59)return null;return `${pad(m[1])}:${m[2]}`;}
+function parsePeriod(v){if(v instanceof Date)return `${v.getUTCFullYear()}-${pad(v.getUTCMonth()+1)}`;const s=String(v).trim();let m;if(m=s.match(/^(\d{4})[-/.](\d{1,2})$/))return +m[2]>=1&&+m[2]<=12?`${m[1]}-${pad(m[2])}`:null;if(m=s.match(/^(\d{1,2})[-/.](\d{4})$/))return +m[1]>=1&&+m[1]<=12?`${m[2]}-${pad(m[1])}`:null;return null;}
+function parseNum(v){if(typeof v==='number')return v;const s=String(v).replace(/rp/i,'').replace(/\s/g,'');if(!s)return 0;const n=Number(s.replace(/\.(?=\d{3}(\D|$))/g,'').replace(',','.'));return Number.isFinite(n)?n:null;}
+const normH=s=>String(s).replace(/\*/g,'').trim().toLowerCase().replace(/\s+/g,' ');
+async function readImport(file){
+  let grid;
+  if(/\.csv$/i.test(file.name))grid=parseCsv(await file.text());
+  else if(/\.xlsx$/i.test(file.name)){if(!window.ExcelJS)throw new Error('Pustaka Excel gagal dimuat. Periksa koneksi internet.');
+    const wb=new ExcelJS.Workbook();await wb.xlsx.load(await file.arrayBuffer());const ws=wb.getWorksheet('Template')||wb.worksheets[0];grid=[];ws.eachRow({includeEmpty:true},r=>{const a=[];for(let i=1;i<=ws.columnCount;i++)a.push(cellVal(r.getCell(i).value));grid.push(a);});}
+  else throw new Error('Format file harus .xlsx atau .csv.');
+  const D=IMPORT_DEF[imp.kind];if(!grid.length)throw new Error('File kosong.');
+  const head=grid[0].map(normH),idx={};D.cols.forEach(c=>idx[c.k]=head.indexOf(normH(c.h)));
+  const miss=D.cols.filter(c=>c.req&&idx[c.k]<0).map(c=>c.h);
+  if(miss.length)throw new Error(`Kolom wajib tidak ditemukan: ${miss.join(', ')}. Gunakan template ${D.label}.`);
+  const seen=new Set(),out=[];
+  grid.slice(1).forEach((row,i)=>{
+    const raw={};D.cols.forEach(c=>{let v=idx[c.k]>=0?row[idx[c.k]]:'';raw[c.k]=typeof v==='string'?v.trim():v;});
+    if(D.cols.every(c=>raw[c.k]===''||raw[c.k]==null))return;
+    const key0=String(raw[D.cols[0].k]??'');if(/^contoh/i.test(key0))return;
+    out.push(validateRow(imp.kind,raw,i+2,seen));
+  });
+  return out;
+}
+function validateRow(kind,raw,line,seen){
+  const D=IMPORT_DEF[kind],e=[],row={};
+  D.cols.forEach(c=>{let v=raw[c.k];
+    if(c.req&&(v===''||v==null)){e.push(`${c.h} wajib diisi`);return;}
+    if(c.date){const d=parseDate(v);if(d===null)e.push(`${c.h} tidak valid`);row[c.k]=d||null;}
+    else if(c.time){const t=parseTime(v);if(t===null)e.push(`${c.h} tidak valid`);row[c.k]=t;}
+    else if(c.n){const n=parseNum(v);if(n===null||n<0)e.push(`${c.h} harus angka`);row[c.k]=n||0;}
+    else if(c.k==='periode'){const p=parsePeriod(v);if(!p)e.push('Periode harus YYYY-MM');row[c.k]=p;}
+    else{const s=v instanceof Date?parseDate(v):String(v??'').trim();if(c.list&&s&&!c.list.includes(s))e.push(`${c.h} harus salah satu: ${c.list.join(', ')}`);row[c.k]=s;}
+  });
+  if(kind==='karyawan'){
+    const nik=row.nik.toLowerCase(),em=(row.email||'').toLowerCase();
+    if(nik&&(S.d.karyawan.some(k=>k.nik.toLowerCase()===nik)||seen.has('n'+nik)))e.push('NIK sudah ada');
+    if(em&&!/^\S+@\S+\.\S+$/.test(em))e.push('Email tidak valid');
+    if(em&&(S.d.karyawan.some(k=>(k.email||'').toLowerCase()===em)||seen.has('e'+em)))e.push('Email sudah ada');
+    seen.add('n'+nik);if(em)seen.add('e'+em);
+    let sid=null;if(row._shift){const s=S.d.shift.find(x=>x.nama.toLowerCase()===row._shift.toLowerCase());if(s)sid=s.id;else e.push(`Shift "${row._shift}" belum ada`);}
+    delete row._shift;row.shift_id=sid;row.email=row.email||null;row.jenis_karyawan=row.jenis_karyawan||'Tetap';row.status=row.status||'Aktif';
+    const kq=raw.kuota_cuti===''||raw.kuota_cuti==null?S.settings.kuota_default:parseNum(raw.kuota_cuti);if(kq===null||kq<0||!Number.isInteger(kq))e.push('Kuota Cuti harus angka bulat');row.kuota_cuti=kq;
+  }else if(kind==='cuti'||kind==='slip_gaji'){
+    const k=S.d.karyawan.find(x=>x.nik.toLowerCase()===String(row._nik).toLowerCase());if(row._nik&&!k)e.push('NIK tidak terdaftar');
+    row.karyawan_id=k&&k.id;delete row._nik;
+    if(kind==='cuti'){row.status=row.status||'Menunggu';if(!e.length){const m=checkCuti(row);if(m)e.push(m);row.hari=workdays(row.mulai,row.selesai);if(row.status==='Disetujui')row.disetujui_oleh=S.user.email;}}
+    else{const key=row.karyawan_id+row.periode;if(S.d.slip_gaji.some(s=>s.karyawan_id===row.karyawan_id&&s.periode===row.periode)||seen.has(key))e.push('Slip periode ini sudah ada');seen.add(key);}
+  }else{const n=row.nama.toLowerCase();if(S.d.shift.some(s=>s.nama.toLowerCase()===n)||seen.has(n))e.push('Nama shift sudah ada');seen.add(n);}
+  return {line,row,raw,errors:e};
+}
+function drawPreview(){
+  const D=IMPORT_DEF[imp.kind],rows=imp.rows,good=rows.filter(r=>!r.errors.length),bad=rows.length-good.length,show=[...rows].sort((a,b)=>b.errors.length-a.errors.length).slice(0,100),cols=D.cols.slice(0,3);
+  if(!rows.length){$('#imp-preview').innerHTML='<p>Tidak ada baris data di file ini. Isi data di bawah baris contoh, lalu unggah lagi.</p>';return;}
+  $('#imp-preview').innerHTML=`<p><b>${esc(imp.name)}</b>: ${good.length} baris siap disimpan, ${bad} baris perlu diperbaiki.</p>
+  <div class="t-wrap"><table class="sample"><thead><tr><th>Baris</th>${cols.map(c=>`<th>${esc(c.h)}</th>`).join('')}<th>Hasil</th></tr></thead><tbody>${show.map(r=>`<tr><td>${r.line}</td>${cols.map(c=>`<td>${esc(r.raw[c.k] instanceof Date?parseDate(r.raw[c.k]):r.raw[c.k])}</td>`).join('')}<td style="white-space:normal">${r.errors.length?`<span class="badge no">Perbaiki</span> ${esc(r.errors.join('; '))}`:'<span class="badge ok">Siap</span>'}</td></tr>`).join('')}</tbody></table></div>
+  ${rows.length>100?`<p class="small" style="margin-top:6px">Menampilkan 100 dari ${rows.length} baris, yang bermasalah lebih dulu.</p>`:''}
+  <div class="tools" style="margin-top:12px"><button class="btn primary" data-act="imp-save" ${good.length?'':'disabled'}>Simpan ${good.length} baris</button><button class="btn" data-act="imp-clear">Batalkan</button></div>`;
+}
+async function handleImportFile(file){
+  try{imp.name=file.name;imp.rows=await readImport(file);drawPreview();}
+  catch(e){console.error(e);imp.rows=null;$('#imp-preview').innerHTML=`<div class="err">${esc(friendly(e))}</div>`;}
+}
+async function saveImport(){
+  const D=IMPORT_DEF[imp.kind],rows=imp.rows.filter(r=>!r.errors.length).map(r=>r.row);let saved=0;const failed=[];
+  for(let i=0;i<rows.length;i+=200){const part=rows.slice(i,i+200);
+    try{await Api.insert(D.table,part);saved+=part.length;}
+    catch(e){for(const r of part){try{await Api.insert(D.table,[r]);saved++;}catch(x){failed.push(friendly(x));}}}}
+  imp.rows=null;await reload();render();
+  if(failed.length)toast(`${saved} baris tersimpan, ${failed.length} gagal. Contoh: ${failed[0]}`,1);else toast(`${saved} baris berhasil disimpan.`);
+}
+
+/* ---------- Modal & formulir ---------- */
+const M=()=>$('#modal');
+function openModal(html){M().innerHTML=html;if(!M().open)M().showModal();}
+const closeBtn=`<button class="icon-btn" data-act="m-close" aria-label="Tutup">${icon(IC.x)}</button>`;
+function field(f,v){
+  const id='f_'+f.k,req=f.req?'required':'',val=v??f.def??'';let c;
+  if(f.type==='select')c=`<select id="${id}" name="${f.k}" ${req}>${f.blank!=null?`<option value="">${esc(f.blank)}</option>`:''}${f.opts.map(o=>{const x=typeof o==='object'?o:{v:o,t:o};return `<option value="${esc(x.v)}" ${String(val)===String(x.v)?'selected':''}>${esc(x.t)}</option>`;}).join('')}</select>`;
+  else if(f.type==='textarea')c=`<textarea id="${id}" name="${f.k}" ${req}>${esc(val)}</textarea>`;
+  else c=`<input id="${id}" name="${f.k}" type="${f.type||'text'}" value="${esc(val)}" ${req} ${f.min!=null?`min="${f.min}"`:''} ${f.step?`step="${f.step}"`:''} ${f.list?`list="${id}_l"`:''}>${f.list?`<datalist id="${id}_l">${f.list.map(o=>`<option value="${esc(o)}">`).join('')}</datalist>`:''}`;
+  return `<label class="fld ${f.full?'full':''}"><span>${esc(f.l)}${f.req?' <span class="req">*</span>':''}</span>${c}${f.help?`<span class="help">${esc(f.help)}</span>`:''}</label>`;
+}
+function formModal({title,fields,values={},submit='Simpan',onSubmit,intro,danger}){
+  openModal(`<form id="mf" novalidate><div class="m-h"><h2>${esc(title)}</h2>${closeBtn}</div><div class="m-b"><div id="merr"></div>${intro?`<p class="muted" style="margin-bottom:12px">${esc(intro)}</p>`:''}<div class="form">${fields.map(f=>field(f,values[f.k])).join('')}</div></div><div class="m-f"><button type="button" class="btn" data-act="m-close">Batal</button><button class="btn ${danger?'danger':'primary'}" type="submit">${esc(submit)}</button></div></form>`);
+  $('#mf').onsubmit=async ev=>{ev.preventDefault();const form=ev.target;
+    const showErr=m=>{$('#merr').innerHTML=`<div class="err">${esc(m)}</div>`;$('#merr').scrollIntoView({block:'nearest'});};
+    if(!form.checkValidity()){const b=$$('input,select,textarea',form).find(x=>!x.checkValidity());const lab=b.closest('label').querySelector('span').textContent.replace('*','').trim();showErr(b.validity.valueMissing?`${lab} wajib diisi.`:`${lab} tidak valid.`);b.focus();return;}
+    const v=Object.fromEntries(new FormData(form).entries());fields.forEach(f=>{if(f.type==='number')v[f.k]=v[f.k]===''?0:Number(v[f.k]);});
+    const btn=$('[type=submit]',form);btn.disabled=true;
+    try{const msg=await onSubmit(v);M().close();await reload();render();if(msg)toast(msg);}catch(e){console.error(e);showErr(friendly(e));btn.disabled=false;}
+  };
+}
+function confirmModal(title,text,label,fn){
+  openModal(`<div class="m-h"><h2>${esc(title)}</h2>${closeBtn}</div><div class="m-b"><div id="merr"></div><p>${esc(text)}</p></div><div class="m-f"><button class="btn" data-act="m-close">Batal</button><button class="btn danger" id="m-ok">${esc(label)}</button></div>`);
+  $('#m-ok').onclick=async ev=>{ev.target.disabled=true;try{const msg=await fn();M().close();await reload();render();if(msg)toast(msg);}catch(e){console.error(e);$('#merr').innerHTML=`<div class="err">${esc(friendly(e))}</div>`;ev.target.disabled=false;}};
+}
+const empFields=()=>[{k:'nik',l:'NIK',req:1},{k:'nama',l:'Nama lengkap',req:1},{k:'email',l:'Email',type:'email',help:'Karyawan mendaftar akun dengan email ini.'},{k:'telepon',l:'Telepon'},{k:'jabatan',l:'Jabatan'},{k:'departemen',l:'Departemen',list:depts()},{k:'tgl_masuk',l:'Tanggal masuk',type:'date'},{k:'jenis_karyawan',l:'Jenis karyawan',type:'select',opts:JENIS_KARYAWAN},{k:'status',l:'Status',type:'select',opts:['Aktif','Nonaktif']},{k:'shift_id',l:'Shift',type:'select',blank:'Belum ditentukan',opts:S.d.shift.map(s=>({v:s.id,t:`${s.nama} (${fmtTime(s.jam_mulai)}-${fmtTime(s.jam_selesai)})`}))},{k:'kuota_cuti',l:'Kuota cuti per tahun',type:'number',min:0,step:1,req:1,def:S.settings.kuota_default}];
+const cleanEmp=v=>({...v,nik:v.nik.trim(),nama:v.nama.trim(),email:v.email.trim()||null,tgl_masuk:v.tgl_masuk||null,shift_id:v.shift_id||null});
+const empOpts=()=>S.d.karyawan.filter(k=>k.status==='Aktif').sort((a,b)=>a.nama.localeCompare(b.nama)).map(k=>({v:k.id,t:`${k.nama} (${k.nik})`}));
+const moneyF=(k,l,req)=>({k,l,type:'number',min:0,step:1,req,def:0});
+const slipFields=edit=>[{k:'karyawan_id',l:'Karyawan',type:'select',req:1,blank:'Pilih karyawan',opts:empOpts(),full:1},{k:'periode',l:'Periode',type:'month',req:1,full:1,def:today().slice(0,7)},moneyF('gaji_pokok','Gaji pokok',1),moneyF('tunjangan','Tunjangan'),moneyF('lembur','Lembur'),moneyF('bonus','Bonus'),moneyF('bpjs','BPJS'),moneyF('pph21','PPh 21'),moneyF('potongan_lain','Potongan lain'),{k:'catatan',l:'Catatan',full:1}];
+const shiftFields=()=>[{k:'nama',l:'Nama shift',req:1,full:1},{k:'jam_mulai',l:'Jam mulai',type:'time',req:1},{k:'jam_selesai',l:'Jam selesai',type:'time',req:1},{k:'keterangan',l:'Keterangan',full:1}];
+function slipModal(s){
+  const k=emp(s.karyawan_id),L=slipLines(s),line=x=>`<div class="slip-l"><span>${esc(x[0])}</span><span>${rupiah(x[1])}</span></div>`,sum=a=>a.reduce((t,x)=>t+num(x[1]),0);
+  openModal(`<div class="m-h"><h2>Slip gaji</h2>${closeBtn}</div><div class="m-b"><div class="slip-head"><img src="${logo()}" alt="Logo"><div><b>${esc(S.settings.perusahaan)}</b><div class="muted small">Slip gaji ${fmtPeriod(s.periode)}</div></div></div>
+  <div class="slip-meta"><div><span class="muted">Nama:</span> <b>${esc(k.nama)}</b></div><div><span class="muted">NIK:</span> ${esc(k.nik)}</div><div><span class="muted">Jabatan:</span> ${esc(k.jabatan||'-')}</div><div><span class="muted">Departemen:</span> ${esc(k.departemen||'-')}</div></div>
+  <div class="slip-cols"><div><h3>Pendapatan</h3>${L.plus.map(line).join('')}<div class="slip-l t"><span>Total</span><span>${rupiah(sum(L.plus))}</span></div></div><div><h3>Potongan</h3>${L.minus.map(line).join('')}<div class="slip-l t"><span>Total</span><span>${rupiah(sum(L.minus))}</span></div></div></div>
+  <div class="slip-net"><span>Gaji bersih diterima</span><b>${rupiah(net(s))}</b></div>${s.catatan?`<p class="muted small" style="margin-top:9px">Catatan: ${esc(s.catatan)}</p>`:''}</div>
+  <div class="m-f"><button class="btn" data-act="slip-xl" data-id="${s.id}">Unduh Excel</button><button class="btn primary" data-act="slip-pdf" data-id="${s.id}">Unduh PDF</button></div>`);
+}
+const find=(t,id)=>S.d[t].find(x=>x.id===id);
+
+const ACT={
+  dd(el){const d=el.closest('.dd'),o=d.classList.toggle('open');el.setAttribute('aria-expanded',o);},
+  'grp'(el){const g=el.closest('.grp'),o=g.classList.toggle('open');el.setAttribute('aria-expanded',o);if(o)S.open.add(g.dataset.g);else S.open.delete(g.dataset.g);},
+  'm-close'(){M().close();},
+  'nav-open'(){document.body.classList.add('nav-open');},
+  'nav-close'(){document.body.classList.remove('nav-open');},
+  pg(el){F[CUR.id].page+=+el.dataset.d;drawTable();window.scrollTo(0,0);},
+  exp(el){closeDd();doExport(CUR.id,el.dataset.f);},
+  'exp-k'(el){doExport(EXPORT_OF[imp.kind],el.dataset.f);},
+  async logout(){await Api.signOut();S.user=null;S.route='';Object.keys(F).forEach(k=>delete F[k]);location.hash='';render();},
+  'imp-kind'(el){imp.kind=el.dataset.k;imp.rows=null;renderImpor();},
+  async tpl(){try{await downloadTemplate();toast('Template berhasil diunduh.');}catch(e){toast(friendly(e),1);}},
+  'imp-save':el=>{el.disabled=true;saveImport();},
+  'imp-clear'(){imp.rows=null;renderImpor();},
+  'emp-add'(){formModal({title:'Tambah karyawan',fields:empFields(),submit:'Simpan karyawan',onSubmit:async v=>{await Api.insert('karyawan',[cleanEmp(v)]);return 'Karyawan berhasil ditambahkan.';}});},
+  'emp-edit'(el){const r=find('karyawan',el.dataset.id);formModal({title:'Ubah karyawan',fields:empFields(),values:r,submit:'Simpan perubahan',onSubmit:async v=>{await Api.update('karyawan',[r.id],cleanEmp(v));return 'Data karyawan diperbarui.';}});},
+  'emp-del'(el){const r=find('karyawan',el.dataset.id);confirmModal('Hapus karyawan',`Hapus ${r.nama} (${r.nik})? Riwayat cuti dan slip gajinya ikut terhapus dan tidak dapat dikembalikan.`,'Hapus karyawan',async()=>{await Api.remove('karyawan',r.id);return 'Karyawan dihapus.';});},
+  'cuti-add'(){formModal({title:'Catat cuti atau izin',fields:[{k:'karyawan_id',l:'Karyawan',type:'select',req:1,blank:'Pilih karyawan',opts:empOpts(),full:1},{k:'jenis',l:'Jenis',type:'select',opts:JENIS_CUTI},{k:'status',l:'Status',type:'select',opts:STATUS_CUTI,def:'Disetujui'},{k:'mulai',l:'Tanggal mulai',type:'date',req:1},{k:'selesai',l:'Tanggal selesai',type:'date',req:1},{k:'alasan',l:'Alasan',type:'textarea',full:1}],onSubmit:async v=>{const e=checkCuti(v);if(e)throw new Error(e);await Api.insert('cuti',[{...v,hari:workdays(v.mulai,v.selesai),disetujui_oleh:v.status==='Disetujui'?S.user.email:''}]);return 'Cuti berhasil dicatat.';}});},
+  'cuti-ajukan'(){const k=myEmp();if(!k){toast('Data karyawan Anda belum ditemukan.',1);return;}const q=kuotaOf(k,thisYear());formModal({title:'Ajukan cuti atau izin',intro:`Sisa kuota Cuti Tahunan ${thisYear()}: ${q.sisa} hari (${q.tunggu} hari sedang menunggu). Hari dihitung Senin sampai Jumat.`,fields:[{k:'jenis',l:'Jenis',type:'select',opts:JENIS_CUTI,full:1},{k:'mulai',l:'Tanggal mulai',type:'date',req:1,def:today()},{k:'selesai',l:'Tanggal selesai',type:'date',req:1,def:today()},{k:'alasan',l:'Alasan',type:'textarea',req:1,full:1}],submit:'Kirim pengajuan',onSubmit:async v=>{const r={...v,karyawan_id:k.id,status:'Menunggu'};const e=checkCuti(r);if(e)throw new Error(e);await Api.insert('cuti',[{...r,hari:workdays(v.mulai,v.selesai)}]);return 'Pengajuan terkirim.';}});},
+  async 'cuti-ok'(el){try{await Api.update('cuti',[el.dataset.id],{status:'Disetujui',disetujui_oleh:S.user.email});await reload();render();toast('Pengajuan disetujui.');}catch(e){toast(friendly(e),1);}},
+  'cuti-no'(el){const r=find('cuti',el.dataset.id),k=emp(r.karyawan_id);formModal({title:'Tolak pengajuan',intro:`${k.nama}, ${r.jenis}, ${fmtDate(r.mulai)} sampai ${fmtDate(r.selesai)}.`,fields:[{k:'catatan',l:'Alasan penolakan',type:'textarea',req:1,full:1}],submit:'Tolak pengajuan',danger:1,onSubmit:async v=>{await Api.update('cuti',[r.id],{status:'Ditolak',catatan:v.catatan});return 'Pengajuan ditolak.';}});},
+  'cuti-del'(el){confirmModal('Hapus data cuti','Data cuti ini akan dihapus dan kuota dihitung ulang.','Hapus data',async()=>{await Api.remove('cuti',el.dataset.id);return 'Data cuti dihapus.';});},
+  'cuti-cancel'(el){confirmModal('Batalkan pengajuan','Pengajuan ini akan dibatalkan.','Batalkan pengajuan',async()=>{await Api.remove('cuti',el.dataset.id);return 'Pengajuan dibatalkan.';});},
+  'quota-set'(el){const r=find('karyawan',el.dataset.id);formModal({title:`Atur kuota: ${r.nama}`,fields:[{k:'kuota_cuti',l:'Kuota cuti per tahun',type:'number',min:0,step:1,req:1,full:1}],values:r,onSubmit:async v=>{await Api.update('karyawan',[r.id],{kuota_cuti:v.kuota_cuti});return 'Kuota diperbarui.';}});},
+  'slip-add'(){formModal({title:'Buat slip gaji',fields:slipFields(),submit:'Simpan slip',onSubmit:async v=>{await Api.insert('slip_gaji',[v]);return 'Slip gaji disimpan.';}});},
+  'slip-edit'(el){const r=find('slip_gaji',el.dataset.id);formModal({title:'Ubah slip gaji',fields:slipFields(),values:r,onSubmit:async v=>{await Api.update('slip_gaji',[r.id],v);return 'Slip gaji diperbarui.';}});},
+  'slip-del'(el){confirmModal('Hapus slip gaji','Slip ini akan hilang dari akun karyawan.','Hapus slip',async()=>{await Api.remove('slip_gaji',el.dataset.id);return 'Slip gaji dihapus.';});},
+  'slip-view'(el){slipModal(find('slip_gaji',el.dataset.id));},
+  'slip-pdf'(el){try{slipPdf(find('slip_gaji',el.dataset.id));toast('Slip gaji PDF diunduh.');}catch(e){toast(friendly(e),1);}},
+  async 'slip-xl'(el){try{await slipExcel(find('slip_gaji',el.dataset.id));toast('Slip gaji Excel diunduh.');}catch(e){toast(friendly(e),1);}},
+  'shift-add'(){formModal({title:'Tambah shift',fields:shiftFields(),onSubmit:async v=>{await Api.insert('shift',[v]);return 'Shift ditambahkan.';}});},
+  'shift-edit'(el){const r=find('shift',el.dataset.id);formModal({title:'Ubah shift',fields:shiftFields(),values:{...r,jam_mulai:fmtTime(r.jam_mulai),jam_selesai:fmtTime(r.jam_selesai)},onSubmit:async v=>{await Api.update('shift',[r.id],v);return 'Shift diperbarui.';}});},
+  'shift-del'(el){confirmModal('Hapus shift','Karyawan pada shift ini menjadi belum memiliki shift.','Hapus shift',async()=>{await Api.remove('shift',el.dataset.id);return 'Shift dihapus.';});},
+  'shift-assign'(el){const r=find('shift',el.dataset.id),list=[...S.d.karyawan].filter(k=>k.status==='Aktif').sort((a,b)=>a.nama.localeCompare(b.nama));
+    openModal(`<div class="m-h"><h2>Karyawan shift ${esc(r.nama)}</h2>${closeBtn}</div><div class="m-b"><div id="merr"></div><div class="check-list">${list.map(k=>`<label><input type="checkbox" value="${k.id}" ${k.shift_id===r.id?'checked':''}><span>${esc(k.nama)}<span class="sub-t">${esc(k.departemen)}${shiftOf(k.shift_id)&&k.shift_id!==r.id?', saat ini '+esc(shiftOf(k.shift_id).nama):''}</span></span></label>`).join('')}</div></div><div class="m-f"><button class="btn" data-act="m-close">Batal</button><button class="btn primary" id="m-ok">Simpan</button></div>`);
+    $('#m-ok').onclick=async()=>{const on=$$('.check-list input').filter(x=>x.checked).map(x=>x.value),off=list.filter(k=>k.shift_id===r.id&&!on.includes(k.id)).map(k=>k.id);try{if(on.length)await Api.update('karyawan',on,{shift_id:r.id});if(off.length)await Api.update('karyawan',off,{shift_id:null});M().close();await reload();render();toast('Karyawan shift diperbarui.');}catch(e){$('#merr').innerHTML=`<div class="err">${esc(friendly(e))}</div>`;}};},
+  'role-set'(el){const r=find('profil',el.dataset.id);formModal({title:'Ubah peran',intro:r.email,fields:[{k:'role',l:'Peran',type:'select',full:1,opts:Object.entries(ROLE_LABEL).map(([v,t])=>({v,t}))}],values:r,onSubmit:async v=>{await Api.update('profil',[r.id],{role:v.role});return 'Peran diperbarui.';}});},
+  'logo-reset':async()=>{await Api.saveSettings({logo:''});S.settings.logo='';render();toast('Logo standar dipakai kembali.');}
+};
+function closeDd(){$$('.dd.open').forEach(d=>{d.classList.remove('open');$('[data-act=dd]',d).setAttribute('aria-expanded','false');});}
+
+function renderPerusahaan(){
+  const s=S.settings;
+  $('#view').innerHTML=`<div class="page-h"><div><h1>Perusahaan & Logo</h1><p>Nama dan logo ini tampil di aplikasi serta semua hasil unduhan Excel dan PDF.</p></div></div>
+  <div class="grid2"><section class="panel"><div class="panel-h"><h2>Profil perusahaan</h2></div><div class="panel-b"><form id="set-f" class="form"><label class="fld full">Nama perusahaan<input name="perusahaan" required value="${esc(s.perusahaan)}"></label><label class="fld full">Alamat<input name="alamat" value="${esc(s.alamat||'')}"></label><label class="fld full">Kuota cuti standar untuk karyawan baru<input name="kuota_default" type="number" min="0" step="1" required value="${esc(s.kuota_default)}"></label><div class="full"><button class="btn primary">Simpan perubahan</button></div></form></div></section>
+  <section class="panel"><div class="panel-h"><h2>Logo</h2></div><div class="panel-b"><div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap"><img src="${logo()}" alt="Logo saat ini" style="width:88px;height:88px;object-fit:contain;border:1px solid var(--line);border-radius:10px"><div style="display:grid;gap:8px"><label class="btn primary">Unggah logo<input type="file" id="logo-f" accept="image/png,image/jpeg,image/webp" style="display:none"></label>${s.logo?'<button class="btn" data-act="logo-reset">Pakai logo standar</button>':''}</div></div><p class="muted small" style="margin-top:10px">PNG atau JPG, disarankan persegi.</p></div></section></div>`;
+  $('#set-f').onsubmit=async e=>{e.preventDefault();const v=Object.fromEntries(new FormData(e.target).entries());v.kuota_default=+v.kuota_default;try{await Api.saveSettings(v);Object.assign(S.settings,v);render();toast('Profil perusahaan disimpan.');}catch(x){toast(friendly(x),1);}};
+  $('#logo-f').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const url=await normLogo(f);await Api.saveSettings({logo:url});S.settings.logo=url;render();toast('Logo disimpan.');}catch(x){toast(friendly(x),1);}};
+}
+function normLogo(file){return new Promise((res,rej)=>{if(file.size>5e6)return rej(new Error('Ukuran logo maksimal 5 MB.'));const u=URL.createObjectURL(file),i=new Image();i.onload=()=>{const c=document.createElement('canvas');c.width=c.height=240;const r=Math.min(240/i.width,240/i.height),w=i.width*r,h=i.height*r;c.getContext('2d').drawImage(i,(240-w)/2,(240-h)/2,w,h);URL.revokeObjectURL(u);res(c.toDataURL('image/png'));};i.onerror=()=>rej(new Error('File logo tidak dapat dibaca.'));i.src=u;});}
+
+/* ---------- Kerangka ---------- */
+const CUSTOM={ringkasan:renderRingkasan,beranda:renderBeranda,'kuota-saya':renderKuotaSaya,impor:renderImpor,perusahaan:renderPerusahaan};
+const routesFor=role=>NAV[role].flatMap(g=>g.items.map(i=>i[0]));
+function render(){
+  if(!S.user)return renderLogin();
+  const role=S.user.role;
+  if(role==='pending'){$('#app').innerHTML=`<div class="login-box" style="min-height:100vh"><div class="login-card panel panel-b"><h2>Akun menunggu akses</h2><p class="muted" style="margin:8px 0 16px">Email ${esc(S.user.email)} belum terhubung dengan data karyawan. Minta Admin HR menambahkan email ini atau memberikan peran.</p><button class="btn" data-act="logout">Keluar</button></div></div>`;return;}
+  const rs=routesFor(role);let r=(location.hash||'').replace(/^#\/?/,'');if(!rs.includes(r))r=rs[0];S.route=r;
+  const g=NAV[role].find(x=>x.items.some(i=>i[0]===r));S.open.add(g.g);
+  const portal={admin:'Dashboard Admin HR',staff:'Portal Staff HR',karyawan:'Portal Karyawan'}[role];
+  $('#app').innerHTML=`<div class="shell"><aside class="side" aria-label="Menu utama"><div class="brand"><img src="${logo()}" alt=""><div><b>${esc(S.settings.perusahaan)}</b><span>${portal}</span></div></div>
+  <nav class="nav">${NAV[role].map(x=>`<div class="grp ${S.open.has(x.g)?'open':''}" data-g="${esc(x.g)}"><button class="grp-h" data-act="grp" aria-expanded="${S.open.has(x.g)}">${icon(IC[x.i])}<span class="lbl">${esc(x.g)}</span>${chev}</button><div class="subs"><div>${x.items.map(i=>`<a class="sub ${i[0]===r?'on':''}" href="#/${i[0]}" ${i[0]===r?'aria-current="page"':''}>${esc(i[1])}</a>`).join('')}</div></div></div>`).join('')}</nav>
+  <div class="me"><b>${esc(S.user.nama||S.user.email)}</b><span>${ROLE_LABEL[role]}</span><button class="btn sm" data-act="logout">Keluar</button></div></aside>
+  <div class="scrim" data-act="nav-close"></div>
+  <div class="main"><header class="topbar"><button class="icon-btn" data-act="nav-open" aria-label="Buka menu">${icon(IC.menu,22)}</button><b>${portal}</b></header>${MODE==='demo'?'<div class="demo-note">Mode demo: data contoh hanya tersimpan di browser ini.</div>':''}<main class="content" id="view"></main></div></div>`;
+  document.body.classList.remove('nav-open');
+  if(CUSTOM[r])CUSTOM[r]();else renderList(r);
+}
+async function reload(){
+  const d=await Api.loadAll(S.user.role);
+  ['karyawan','shift','cuti','slip_gaji','profil','log_aktivitas'].forEach(t=>S.d[t]=d[t]?[...d[t]]:[]);
+  const s=await Api.loadSettings();if(s)S.settings={...S.settings,...s};
+}
+async function enter(){S.user=await Api.session();if(S.user&&S.user.role!=='pending')await reload();render();}
+
+function loginArt(){let d='';for(let i=0;i<24;i++)d+=`<i class="${[1,2,5,9,10,14,17,20,23].includes(i)?'f':''}"></i>`;
+  return `<div class="login-art"><div><div class="brand"><img src="${logo()}" alt=""><div><b>${esc(S.settings.perusahaan)}</b></div></div><h1>Data karyawan, cuti, dan gaji dalam satu tempat.</h1></div><div class="big-punch" aria-hidden="true">${d}</div></div>`;}
+function renderLogin(){
+  let box;
+  if(MODE==='demo'){
+    box=`<h2>Coba aplikasi</h2><p class="muted">Pilih peran untuk melihat tampilannya.</p>
+    <div class="demo-b"><button data-demo="u-admin"><b>Admin HR</b><span>Akses penuh ke semua menu</span></button><button data-demo="u-staff"><b>Staff HR</b><span>Hanya menambah dan menghapus karyawan</span></button><button data-demo="u-sari"><b>Karyawan</b><span>Cuti, kuota, shift, dan slip gaji pribadi</span></button></div>
+    <details class="setup"><summary>Cara menghubungkan ke Supabase</summary><ol><li>Buat proyek di Supabase, buka SQL Editor, tempel SQL di bawah, lalu jalankan.</li><li>Di Authentication, pastikan Confirm email aktif. Isi Site URL dengan alamat Vercel Anda.</li><li>Isi <code>SUPABASE_URL</code> dan <code>SUPABASE_ANON_KEY</code> di index.html, unggah ke GitHub, lalu impor repositori ke Vercel.</li><li>Daftar lewat website, lalu jalankan perintah terakhir pada SQL untuk menjadikan akun Anda Admin HR.</li></ol><button class="btn sm" id="copy-sql" style="margin-bottom:14px">Salin SQL</button></details>`;
+  }else{
+    const m=S.authMode;
+    box=`<h2>${{masuk:'Masuk',daftar:'Daftar akun',lupa:'Atur ulang kata sandi'}[m]}</h2><p class="muted">${{masuk:'Gunakan email dan kata sandi Anda.',daftar:'Karyawan memakai email yang terdaftar di HR.',lupa:'Tautan pengaturan ulang dikirim ke email Anda.'}[m]}</p>
+    <form id="auth-f" novalidate><div id="auth-err"></div>${m==='daftar'?'<label class="fld">Nama lengkap<input name="nama" required autocomplete="name"></label>':''}<label class="fld">Email<input name="email" type="email" required autocomplete="email"></label>${m!=='lupa'?`<label class="fld">Kata sandi<input name="password" type="password" required minlength="8" autocomplete="${m==='masuk'?'current-password':'new-password'}">${m==='daftar'?'<span class="help">Minimal 8 karakter.</span>':''}</label>`:''}<button class="btn primary" type="submit">${{masuk:'Masuk',daftar:'Daftar',lupa:'Kirim tautan'}[m]}</button></form>
+    <p style="margin-top:14px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap">${m!=='masuk'?'<button class="link" data-auth="masuk">Kembali ke Masuk</button>':'<button class="link" data-auth="daftar">Daftar akun</button><button class="link" data-auth="lupa">Lupa kata sandi?</button>'}</p>`;
+  }
+  $('#app').innerHTML=`<div class="login">${loginArt()}<div class="login-box"><div class="login-card">${box}</div></div></div>`;
+  const f=$('#auth-f');if(f)f.onsubmit=async e=>{e.preventDefault();const err=$('#auth-err'),say=(m,ok)=>err.innerHTML=`<div class="err" ${ok?'style="background:var(--jade-l);color:var(--jade-d)"':''}>${esc(m)}</div>`;
+    if(!f.checkValidity())return say('Lengkapi semua kolom. Email harus valid dan kata sandi minimal 8 karakter.');
+    const v=Object.fromEntries(new FormData(f).entries()),b=$('[type=submit]',f);b.disabled=true;
+    try{if(S.authMode==='masuk'){await Api.signIn(v.email,v.password);await enter();}
+      else if(S.authMode==='daftar'){const live=await Api.signUp(v.email,v.password,v.nama);if(live)await enter();else{say('Periksa email Anda dan buka tautan konfirmasi untuk mengaktifkan akun.',1);b.disabled=false;}}
+      else{await Api.resetPw(v.email);say('Tautan terkirim bila email tersebut terdaftar.',1);b.disabled=false;}
+    }catch(x){say(friendly(x));b.disabled=false;}};
+  const c=$('#copy-sql');if(c)c.onclick=async()=>{try{await navigator.clipboard.writeText($('#schema-sql').textContent.trim());toast('SQL disalin.');}catch(e){toast('Gagal menyalin. Salin dari blok schema-sql di index.html.',1);}};
+}
+
+/* ---------- Peristiwa global ---------- */
+document.addEventListener('click',async e=>{
+  const demo=e.target.closest('[data-demo]');if(demo){await Api.signInDemo(demo.dataset.demo);await enter();return;}
+  const au=e.target.closest('[data-auth]');if(au){S.authMode=au.dataset.auth;renderLogin();return;}
+  if(e.target.closest('.sub'))document.body.classList.remove('nav-open');
+  const el=e.target.closest('[data-act]');
+  if(!e.target.closest('.dd'))closeDd();
+  if(el&&!el.disabled&&ACT[el.dataset.act]){e.preventDefault();ACT[el.dataset.act](el);}
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeDd();document.body.classList.remove('nav-open');}});
+document.addEventListener('input',e=>{if(e.target.id==='q'&&CUR){F[CUR.id].q=e.target.value;F[CUR.id].page=1;drawTable();}});
+document.addEventListener('change',e=>{
+  if(e.target.dataset&&e.target.dataset.filter&&CUR){F[CUR.id][e.target.dataset.filter]=e.target.value;F[CUR.id].page=1;drawTable();}
+  if(e.target.id==='imp-file'&&e.target.files[0])handleImportFile(e.target.files[0]);
+});
+['dragover','dragleave','drop'].forEach(t=>document.addEventListener(t,e=>{const d=e.target.closest&&e.target.closest('#drop');if(!d)return;e.preventDefault();d.classList.toggle('over',t==='dragover');if(t==='drop'&&e.dataTransfer.files[0])handleImportFile(e.dataTransfer.files[0]);}));
+window.addEventListener('hashchange',()=>{if(S.user)render();});
+document.addEventListener('visibilitychange',async()=>{if(document.hidden||!S.user||S.user.role==='pending'||M().open||MODE==='demo'||S.route==='impor')return;try{await reload();render();}catch(e){}});
+
+(async function boot(){
+  try{
+    if(MODE==='cloud'&&!window.supabase)throw new Error('Pustaka Supabase gagal dimuat. Periksa koneksi internet lalu muat ulang halaman.');
+    Api=MODE==='cloud'?cloudApi():demoApi();
+    if(Api.onRecovery)Api.onRecovery(()=>formModal({title:'Buat kata sandi baru',fields:[{k:'password',l:'Kata sandi baru',type:'password',req:1,full:1,help:'Minimal 8 karakter.'}],onSubmit:async v=>{if(v.password.length<8)throw new Error('Kata sandi minimal 8 karakter.');await Api.updatePw(v.password);await enter();return 'Kata sandi diperbarui.';}}));
+    const s=await Api.loadSettings();if(s)S.settings={...S.settings,...s};
+    await enter();
+  }catch(e){console.error(e);$('#app').innerHTML=`<div class="loading"><b>Aplikasi tidak dapat dibuka.</b><br>${esc(friendly(e))}</div>`;}
+})();
+</script>
+</body>
+</html>
