@@ -313,22 +313,23 @@ alter table public.karyawan
   add column if not exists tgl_lahir date,
   add column if not exists agama text default '',
   add column if not exists status_ptkp text default '',
-  add column if not exists person_grade text default '',
-  add column if not exists level_kompetensi text default '',
   add column if not exists proyek text default '',
   add column if not exists unit_kerja text default '',
   add column if not exists lokasi text default '',
   add column if not exists cuti_ket text default '',
   add column if not exists jabatan_fungsional text default '',
-  add column if not exists pw text default '',
-  add column if not exists kontrak_akhir date,
+  add column if not exists no_kontrak_awal text default '',
+  add column if not exists no_kontrak_add1 text default '',
   add column if not exists kontrak_add1 date,
+  add column if not exists no_kontrak_add2 text default '',
   add column if not exists kontrak_add2 date,
+  add column if not exists no_kontrak_add3 text default '',
   add column if not exists kontrak_add3 date,
+  add column if not exists no_kontrak_add4 text default '',
   add column if not exists kontrak_add4 date,
-  add column if not exists kontrak_add4b date,
+  add column if not exists no_kontrak_add5 text default '',
   add column if not exists kontrak_add5 date,
-  add column if not exists tgl_keluar date;
+  add column if not exists kontrak_berakhir date;
 
 create table public.profil(
   id uuid primary key references auth.users(id) on delete cascade,
@@ -622,7 +623,7 @@ function demoApi(){
   function seed(){
     const sh=[['Reguler','08:00','17:00','Senin sampai Jumat'],['Pagi','06:00','14:00',''],['Siang','14:00','22:00',''],['Malam','22:00','06:00','']].map(a=>({id:uid(),nama:a[0],jam_mulai:a[1],jam_selesai:a[2],keterangan:a[3]}));
     const raw=[['Sari Wulandari','Analis Keuangan','Keuangan','Tetap'],['Budi Santoso','Supervisor Produksi','Produksi','Tetap'],['Dewi Lestari','Staf Administrasi','Administrasi','Kontrak'],['Agus Prasetyo','Operator Mesin','Produksi','Tetap'],['Rina Marlina','Staf Pemasaran','Pemasaran','Tetap'],['Hendra Gunawan','Teknisi','Teknik','Tetap'],['Putri Anggraini','Akuntan','Keuangan','Tetap'],['Fajar Nugroho','Operator Mesin','Produksi','Kontrak'],['Maya Sari','Desainer','Pemasaran','Kontrak'],['Rizki Ramadhan','Teknisi','Teknik','Tetap'],['Lina Kartika','Staf Gudang','Logistik','Tetap'],['Yusuf Hidayat','Pengemudi','Logistik','Harian'],['Nadia Putri','Peserta Magang','Administrasi','Magang'],['Bayu Saputra','Operator Mesin','Produksi','Tetap'],['Siti Rahmawati','Staf Pembelian','Logistik','Tetap'],['Dimas Pratama','Programmer','Teknik','Kontrak']];
-    const karyawan=raw.map((a,i)=>({id:uid(),nik:'EMP'+pad(i+1).padStart(3,'0'),nama:a[0],email:a[0].split(' ')[0].toLowerCase()+'@demo.test',telepon:'08120000'+pad(i+10)+'00',jabatan:a[1],departemen:a[2],tgl_masuk:`${2017+i%8}-${pad(i%12+1)}-0${i%8+1}`,jenis_karyawan:a[3],status:i===11?'Nonaktif':'Aktif',shift_id:sh[a[2]==='Produksi'?1+i%3:0].id,kuota_cuti:12,proyek:'Proyek Contoh',unit_kerja:'Proyek',lokasi:'Jakarta',kontrak_akhir:`${thisYear()+1}-06-30`,tgl_lahir:`${1985+i}-0${i%9+1}-15`,jenjang:'S1',created_at:new Date().toISOString()}));
+    const karyawan=raw.map((a,i)=>({id:uid(),nik:'EMP'+pad(i+1).padStart(3,'0'),nama:a[0],email:a[0].split(' ')[0].toLowerCase()+'@demo.test',telepon:'08120000'+pad(i+10)+'00',jabatan:a[1],departemen:a[2],tgl_masuk:`${2017+i%8}-${pad(i%12+1)}-0${i%8+1}`,jenis_karyawan:a[3],status:i===11?'Nonaktif':'Aktif',shift_id:sh[a[2]==='Produksi'?1+i%3:0].id,kuota_cuti:12,proyek:'Proyek Contoh',unit_kerja:'Proyek',lokasi:'Jakarta',no_kontrak_awal:`${pad(i+1)}/KTR/${2017+i%8}`,kontrak_berakhir:`${thisYear()+1}-06-30`,tgl_lahir:`${1985+i}-0${i%9+1}-15`,jenjang:'S1',created_at:new Date().toISOString()}));
     const karyawan_privat=karyawan.map((k,i)=>({id:uid(),karyawan_id:k.id,npwp:'',no_kk:'',ktp:'',alamat_ktp:'',gaji:4500000+i*275000,kenaikan_gaji:0}));
     const y=thisYear(), now=new Date(), mm=now.getMonth()+1, cuti=[];
     const add=(i,j,a,b,st,al)=>cuti.push({id:uid(),karyawan_id:karyawan[i].id,jenis:j,mulai:a,selesai:b,hari:workdays(a,b),alasan:al,status:st,catatan:'',disetujui_oleh:st==='Disetujui'?'admin@demo.test':'',created_at:new Date().toISOString()});
@@ -854,7 +855,9 @@ const PRIV_KEYS=['npwp','no_kk','ktp','alamat_ktp','gaji','kenaikan_gaji'];
 const privOf=k=>S.privBy.get(k.id)||{};
 const jenisList=()=>[...new Set(S.d.karyawan.map(k=>k.jenis_karyawan).filter(Boolean))].sort();
 function usiaOf(d){if(!d)return '';const t=today();let u=+t.slice(0,4)-+d.slice(0,4);if(t.slice(5)<d.slice(5))u--;return u;}
-function masaKerja(k){if(!k.tgl_masuk)return '';const a=k.tgl_masuk,b=(k.tgl_keluar&&k.tgl_keluar<today())?k.tgl_keluar:today();let m=(+b.slice(0,4)-+a.slice(0,4))*12+(+b.slice(5,7)-+a.slice(5,7));if(b.slice(8,10)<a.slice(8,10))m--;if(m<0)return '';return `${Math.floor(m/12)} th ${m%12} bln`;}
+const ADD_KEYS=['kontrak_add5','kontrak_add4','kontrak_add3','kontrak_add2','kontrak_add1'];
+function masaStart(k){const a=ADD_KEYS.find(x=>k[x]);return a?{d:k[a],l:'KONTRAK ADD '+a.slice(-1)}:k.tgl_masuk?{d:k.tgl_masuk,l:'KONTRAK AWAL'}:null;}
+function masaKerja(k){const st=masaStart(k);if(!st)return '';const a=st.d,b=k.kontrak_berakhir||today();let m=(+b.slice(0,4)-+a.slice(0,4))*12+(+b.slice(5,7)-+a.slice(5,7)),d=+b.slice(8,10)-+a.slice(8,10);if(d<0){m--;d+=new Date(Date.UTC(+b.slice(0,4),+b.slice(5,7)-1,0)).getUTCDate();}if(m<0)return '';return [Math.floor(m/12)?Math.floor(m/12)+' th':'',m%12?m%12+' bln':'',d?d+' hr':''].filter(Boolean).join(' ')||'0 hr';}
 const karyawanXCols=()=>IMPORT_DEF.karyawan.cols.filter(c=>c.k!=='_no').map(c=>({l:c.h,hide:!!c.hide,pw:c.pw||24,t:c.date?'date':c.n?'money':undefined,v:c.k==='_umur'?r=>usiaOf(r.tgl_lahir):c.k==='_masa'?r=>masaKerja(r):PRIV_KEYS.includes(c.k)?r=>privOf(r)[c.k]:r=>r[c.k]}));
 function splitEmp(r){const b={},p={};Object.entries(r).forEach(([k,v])=>{(PRIV_KEYS.includes(k)?p:b)[k]=v;});return {b,p};}
 async function insertEmp(rows){const base=[],priv=[];rows.forEach(r=>{const {b,p}=splitEmp(r);b.id=uid();base.push(b);priv.push({...p,karyawan_id:b.id});});await Api.insert('karyawan',base);await Api.insert('karyawan_privat',priv);}
@@ -867,7 +870,7 @@ const fOpt=(id,label,opts,all='Semua',def='')=>({id,label,opts:()=>opts(),all,de
 const PAGES={
   karyawan:()=>({title:'Data Karyawan',desc:isAdmin()?'Kelola biodata, kontrak, shift, dan kuota cuti setiap karyawan.':'Portal Staff HR: Anda dapat menambahkan dan menghapus data karyawan.',
     xCols:karyawanXCols,xStyle:{gold:true,sign:true,freeze:3,noLabel:'NO',font:{name:'Trebuchet MS',size:9}},
-    cols:[COL.nik,{l:'Nama',v:r=>r.nama,h:r=>`<span class="name">${esc(r.nama)}</span><span class="sub-t">${esc(r.jabatan||'')}</span>`},{l:'Email',only:'x',v:r=>r.email||''},{l:'Jabatan',only:'x',v:r=>r.jabatan},{l:'Divisi',v:r=>r.departemen},{l:'Status pegawai',v:r=>r.jenis_karyawan},{l:'Proyek',v:r=>r.proyek||'',h:r=>`<span style="display:block;max-width:240px;white-space:normal">${esc(r.proyek||'-')}</span>`},{l:'Kontrak akhir',t:'date',v:r=>r.kontrak_akhir},{l:'Shift',v:r=>shiftOf(r.shift_id)?.nama||'-'},{l:'Status',v:r=>r.status,h:r=>badge(r.status)}],
+    cols:[COL.nik,{l:'Nama',v:r=>r.nama,h:r=>`<span class="name">${esc(r.nama)}</span><span class="sub-t">${esc(r.jabatan||'')}</span>`},{l:'Email',only:'x',v:r=>r.email||''},{l:'Jabatan',only:'x',v:r=>r.jabatan},{l:'Divisi',v:r=>r.departemen},{l:'Status pegawai',v:r=>r.jenis_karyawan},{l:'Proyek',v:r=>r.proyek||'',h:r=>`<span style="display:block;max-width:240px;white-space:normal">${esc(r.proyek||'-')}</span>`},{l:'Kontrak berakhir',t:'date',v:r=>r.kontrak_berakhir},{l:'Masa kerja',v:r=>masaKerja(r),h:r=>`<span class="nowrap">${esc(masaKerja(r)||'-')}</span>`},{l:'Shift',v:r=>shiftOf(r.shift_id)?.nama||'-'},{l:'Status',v:r=>r.status,h:r=>badge(r.status)}],
     rows:f=>S.d.karyawan.filter(r=>(!f.dep||r.departemen===f.dep)&&(!f.jenis||r.jenis_karyawan===f.jenis)&&(!f.pro||r.proyek===f.pro)&&(!f.st||r.status===f.st)).sort((a,b)=>a.nama.localeCompare(b.nama)),
     filters:[fOpt('dep','Divisi',depts),fOpt('jenis','Status pegawai',jenisList),fOpt('pro','Proyek',()=>[...new Set(S.d.karyawan.map(k=>k.proyek).filter(Boolean))].sort()),fOpt('st','Status',()=>['Aktif','Nonaktif'])],
     addLabel:'Tambah karyawan',addAct:'emp-add',noExport:!isAdmin(),
@@ -1013,27 +1016,28 @@ const IMPORT_DEF={
     {h:'AGAMA',k:'agama',eg:'ISLAM',fmt:'Teks',hide:1},
     {h:'STATUS PTKP',k:'status_ptkp',eg:'K/1',fmt:'Teks',pw:16},
     {h:'STATUS PEGAWAI',k:'jenis_karyawan',eg:'KONTRAK PROYEK',fmt:'Teks',pw:26},
-    {h:'Person Grade',k:'person_grade',eg:'',fmt:'Teks',hide:1},
-    {h:'Level Kompetensi',k:'level_kompetensi',eg:'',fmt:'Teks',hide:1},
     {h:'PROYEK',k:'proyek',eg:'PROYEK CONTOH',fmt:'Teks',pw:60},
     {h:'UNIT KERJA',k:'unit_kerja',eg:'PROYEK',fmt:'Teks',pw:22},
     {h:'LOKASI',k:'lokasi',eg:'HO',fmt:'Teks',pw:18},
     {h:'CUTI',k:'cuti_ket',eg:'12 BULAN',fmt:'Keterangan; tidak mengubah kuota',pw:18},
     {h:'JABATAN STRUKTURAL',k:'jabatan',eg:'SITE ENGINEER',fmt:'Teks',pw:42},
     {h:'Jabatan Fungsional',k:'jabatan_fungsional',eg:'',fmt:'Teks',hide:1},
-    {h:'P/W',k:'pw',eg:'',fmt:'Teks',hide:1},
     {h:'DIVISI',k:'departemen',eg:'Project Control',fmt:'Teks',pw:30},
     {h:'NPWP',k:'npwp',eg:'00 000 000 0 000 000',fmt:'Teks',text:1,pw:38},
+    {h:'NO KONTRAK AWAL',k:'no_kontrak_awal',eg:'001/KTR/2024',fmt:'Nomor kontrak (teks)',text:1,pw:34},
     {h:'KONTRAK AWAL',k:'tgl_masuk',eg:'2024-01-15',fmt:'YYYY-MM-DD atau DD/MM/YYYY',date:1},
-    {h:'KONTRAK AKHIR',k:'kontrak_akhir',eg:'2024-12-31',fmt:'Tanggal',date:1},
-    {h:'KONTRAK ADD 1',k:'kontrak_add1',eg:'',fmt:'Tanggal',date:1},
-    {h:'KONTRAK ADD 2',k:'kontrak_add2',eg:'',fmt:'Tanggal',date:1},
-    {h:'KONTRAK ADD 3',k:'kontrak_add3',eg:'',fmt:'Tanggal',date:1},
-    {h:'KONTRAK ADD 4',k:'kontrak_add4',eg:'',fmt:'Tanggal',date:1,hide:1},
-    {h:'MASA KERJA',k:'_masa',ign:1,eg:'',fmt:'Dihitung otomatis dari Kontrak Awal',hide:1},
-    {h:'KONTRAK ADD 4',k:'kontrak_add4b',eg:'',fmt:'Tanggal',date:1},
-    {h:'KONTRAK ADD 5',k:'kontrak_add5',eg:'',fmt:'Tanggal',date:1},
-    {h:'TGL KELUAR PROYEK',k:'tgl_keluar',eg:'',fmt:'Tanggal; bila sudah lewat, status menjadi Nonaktif',date:1},
+    {h:'NO KONTRAK ADD 1',k:'no_kontrak_add1',eg:'',fmt:'Nomor kontrak (teks)',text:1,pw:34},
+    {h:'KONTRAK ADD 1',k:'kontrak_add1',eg:'',fmt:'Tanggal mulai addendum 1',date:1},
+    {h:'NO KONTRAK ADD 2',k:'no_kontrak_add2',eg:'',fmt:'Nomor kontrak (teks)',text:1,pw:34},
+    {h:'KONTRAK ADD 2',k:'kontrak_add2',eg:'',fmt:'Tanggal mulai addendum 2',date:1},
+    {h:'NO KONTRAK ADD 3',k:'no_kontrak_add3',eg:'',fmt:'Nomor kontrak (teks)',text:1,pw:34},
+    {h:'KONTRAK ADD 3',k:'kontrak_add3',eg:'',fmt:'Tanggal mulai addendum 3',date:1},
+    {h:'NO KONTRAK ADD 4',k:'no_kontrak_add4',eg:'',fmt:'Nomor kontrak (teks)',text:1,pw:34},
+    {h:'KONTRAK ADD 4',k:'kontrak_add4',eg:'',fmt:'Tanggal mulai addendum 4',date:1},
+    {h:'NO KONTRAK ADD 5',k:'no_kontrak_add5',eg:'',fmt:'Nomor kontrak (teks)',text:1,pw:34},
+    {h:'KONTRAK ADD 5',k:'kontrak_add5',eg:'',fmt:'Tanggal mulai addendum 5',date:1},
+    {h:'KONTRAK BERAKHIR',k:'kontrak_berakhir',eg:'2024-12-31',fmt:'Tanggal akhir kontrak',date:1},
+    {h:'MASA KERJA',k:'_masa',ign:1,eg:'',fmt:'Dihitung otomatis: dari Kontrak Awal atau Kontrak ADD terakhir sampai Kontrak Berakhir',pw:24},
     {h:'KENAIKAN GAJI',k:'kenaikan_gaji',eg:0,fmt:'Angka tanpa Rp',n:1,pw:30},
     {h:'GAJI',k:'gaji',eg:5000000,fmt:'Angka tanpa Rp',n:1,pw:30},
     {h:'NO KK',k:'no_kk',eg:'',fmt:'Teks',text:1,hide:1},
@@ -1142,7 +1146,7 @@ function validateRow(kind,raw,line,seen){
     if(em&&!/^\S+@\S+\.\S+$/.test(em))e.push('Email tidak valid');
     if(em&&(S.d.karyawan.some(k=>(k.email||'').toLowerCase()===em)||seen.has('e'+em)))e.push('Email sudah ada');
     seen.add('n'+nik);if(em)seen.add('e'+em);
-    row.shift_id=null;row.email=row.email||null;row.jenis_karyawan=row.jenis_karyawan||'Kontrak';row.status=row.tgl_keluar&&row.tgl_keluar<=today()?'Nonaktif':'Aktif';row.kuota_cuti=num(S.settings.kuota_default)||12;
+    row.shift_id=null;row.email=row.email||null;row.jenis_karyawan=row.jenis_karyawan||'Kontrak';row.status='Aktif';row.kuota_cuti=num(S.settings.kuota_default)||12;
   }else if(kind==='cuti'||kind==='slip_gaji'){
     const k=S.d.karyawan.find(x=>x.nik.toLowerCase()===String(row._nik).toLowerCase());if(row._nik&&!k)e.push('No file kontrak tidak terdaftar');
     row.karyawan_id=k&&k.id;delete row._nik;
@@ -1198,18 +1202,18 @@ function confirmModal(title,text,label,fn){
   openModal(`<div class="m-h"><h2>${esc(title)}</h2>${closeBtn}</div><div class="m-b"><div id="merr"></div><p>${esc(text)}</p></div><div class="m-f"><button class="btn" data-act="m-close">Batal</button><button class="btn danger" id="m-ok">${esc(label)}</button></div>`);
   $('#m-ok').onclick=async ev=>{ev.target.disabled=true;try{const msg=await fn();M().close();await reload();render();if(msg)toast(msg);}catch(e){console.error(e);$('#merr').innerHTML=`<div class="err">${esc(friendly(e))}</div>`;ev.target.disabled=false;}};
 }
-const EMP_GROUPS=[['Identitas',['nik','nama','jenis_kelamin','tempat_lahir','tgl_lahir','agama','status_ptkp','jenjang','jurusan']],['Pekerjaan',['jenis_karyawan','proyek','unit_kerja','lokasi','jabatan','jabatan_fungsional','departemen','person_grade','level_kompetensi','pw','cuti_ket']],['Kontrak',['tgl_masuk','kontrak_akhir','kontrak_add1','kontrak_add2','kontrak_add3','kontrak_add4','kontrak_add4b','kontrak_add5','tgl_keluar']],['Gaji dan dokumen',['gaji','kenaikan_gaji','npwp','no_kk','ktp','alamat_ktp']]];
+const EMP_GROUPS=[['Identitas',['nik','nama','jenis_kelamin','tempat_lahir','tgl_lahir','agama','status_ptkp','jenjang','jurusan']],['Pekerjaan',['jenis_karyawan','proyek','unit_kerja','lokasi','jabatan','jabatan_fungsional','departemen','cuti_ket']],['Kontrak',['no_kontrak_awal','tgl_masuk','no_kontrak_add1','kontrak_add1','no_kontrak_add2','kontrak_add2','no_kontrak_add3','kontrak_add3','no_kontrak_add4','kontrak_add4','no_kontrak_add5','kontrak_add5','kontrak_berakhir']],['Gaji dan dokumen',['gaji','kenaikan_gaji','npwp','no_kk','ktp','alamat_ktp']]];
 const kcOf=k=>IMPORT_DEF.karyawan.cols.find(c=>c.k===k);
 function empFields(){
   const lists={departemen:depts(),jenis_karyawan:[...new Set([...JENIS_KARYAWAN,...jenisList()])],proyek:[...new Set(S.d.karyawan.map(k=>k.proyek).filter(Boolean))]};
   const out=[];
-  EMP_GROUPS.forEach(([g,keys])=>{out.push({head:g});keys.forEach(k=>{const c=kcOf(k),f={k,l:k==='kontrak_add4b'?'KONTRAK ADD 4 (kedua)':c.h,req:c.req,list:lists[k]};if(c.date)f.type='date';if(c.n){f.type='number';f.min=0;f.step=1;f.def=0;}if(k==='alamat_ktp'){f.type='textarea';f.full=1;}if(k==='nama'||k==='proyek')f.full=1;out.push(f);});});
+  EMP_GROUPS.forEach(([g,keys])=>{out.push({head:g});keys.forEach(k=>{const c=kcOf(k),f={k,l:c.h,req:c.req,list:lists[k]};if(c.date)f.type='date';if(c.n){f.type='number';f.min=0;f.step=1;f.def=0;}if(k==='alamat_ktp'){f.type='textarea';f.full=1;}if(k==='nama'||k==='proyek')f.full=1;if(k==='kontrak_berakhir')f.help='Masa kerja dihitung dari Kontrak Awal, atau dari Kontrak ADD terakhir yang terisi, sampai tanggal ini.';out.push(f);});});
   out.push({head:'Akun dan pengaturan'},{k:'email',l:'Email',type:'email',help:'Karyawan mendaftar akun dengan email ini.'},{k:'telepon',l:'Telepon'},{k:'status',l:'Status',type:'select',opts:['Aktif','Nonaktif']},{k:'shift_id',l:'Shift',type:'select',blank:'Belum ditentukan',opts:S.d.shift.map(s=>({v:s.id,t:`${s.nama} (${fmtTime(s.jam_mulai)}-${fmtTime(s.jam_selesai)})`}))},{k:'kuota_cuti',l:'Kuota cuti per tahun',type:'number',min:0,step:1,req:1,def:S.settings.kuota_default});
   return out;
 }
 function cleanEmp(v){const r={...v,nik:v.nik.trim(),nama:v.nama.trim(),email:(v.email||'').trim()||null,shift_id:v.shift_id||null,jenis_karyawan:(v.jenis_karyawan||'').trim()||'Kontrak'};IMPORT_DEF.karyawan.cols.filter(c=>c.date).forEach(c=>{r[c.k]=r[c.k]||null;});return r;}
 function empDetail(r){const p=privOf(r),val=k=>{const c=kcOf(k),v=PRIV_KEYS.includes(k)?p[k]:r[k];return c.date?fmtDate(v):c.n?rupiah(v):(v||'-');};
-  openModal(`<div class="m-h"><h2>${esc(r.nama)}</h2>${closeBtn}</div><div class="m-b">${EMP_GROUPS.map(([g,keys])=>`<h3 style="font-size:14px;margin:12px 0 6px">${esc(g)}</h3>${keys.map(k=>`<div class="slip-l"><span class="muted">${esc(k==='kontrak_add4b'?'KONTRAK ADD 4 (kedua)':kcOf(k).h)}</span><span class="right" style="overflow-wrap:anywhere">${esc(val(k))}</span></div>`).join('')}`).join('')}<h3 style="font-size:14px;margin:12px 0 6px">Dihitung otomatis</h3><div class="slip-l"><span class="muted">UMUR</span><span>${esc(usiaOf(r.tgl_lahir)===''?'-':usiaOf(r.tgl_lahir)+' tahun')}</span></div><div class="slip-l"><span class="muted">MASA KERJA</span><span>${esc(masaKerja(r)||'-')}</span></div></div>`);}
+  openModal(`<div class="m-h"><h2>${esc(r.nama)}</h2>${closeBtn}</div><div class="m-b">${EMP_GROUPS.map(([g,keys])=>`<h3 style="font-size:14px;margin:12px 0 6px">${esc(g)}</h3>${keys.map(k=>`<div class="slip-l"><span class="muted">${esc(kcOf(k).h)}</span><span class="right" style="overflow-wrap:anywhere">${esc(val(k))}</span></div>`).join('')}`).join('')}<h3 style="font-size:14px;margin:12px 0 6px">Dihitung otomatis</h3><div class="slip-l"><span class="muted">UMUR</span><span>${esc(usiaOf(r.tgl_lahir)===''?'-':usiaOf(r.tgl_lahir)+' tahun')}</span></div><div class="slip-l"><span class="muted">MASA KERJA</span><span class="right">${esc(masaKerja(r)||'-')}${masaStart(r)?`<span class="sub-t">dari ${esc(masaStart(r).l)} sampai ${r.kontrak_berakhir?'KONTRAK BERAKHIR':'hari ini'}</span>`:''}</span></div></div>`);}
 const empOpts=()=>S.d.karyawan.filter(k=>k.status==='Aktif').sort((a,b)=>a.nama.localeCompare(b.nama)).map(k=>({v:k.id,t:`${k.nama} (${k.nik})`}));
 const moneyF=(k,l,req)=>({k,l,type:'number',min:0,step:1,req,def:0});
 const slipFields=edit=>[{k:'karyawan_id',l:'Karyawan',type:'select',req:1,blank:'Pilih karyawan',opts:empOpts(),full:1},{k:'periode',l:'Periode',type:'month',req:1,full:1,def:today().slice(0,7)},moneyF('gaji_pokok','Gaji pokok',1),moneyF('tunjangan','Tunjangan'),moneyF('lembur','Lembur'),moneyF('bonus','Bonus'),moneyF('bpjs','BPJS'),moneyF('pph21','PPh 21'),moneyF('potongan_lain','Potongan lain'),{k:'catatan',l:'Catatan',full:1}];
@@ -1301,7 +1305,6 @@ async function reload(){
   const d=await Api.loadAll(S.user.role);
   ['karyawan','karyawan_privat','shift','cuti','slip_gaji','profil','log_aktivitas'].forEach(t=>S.d[t]=d[t]?[...d[t]]:[]);
   S.privBy=new Map(S.d.karyawan_privat.map(p=>[p.karyawan_id,p]));
-  S.d.karyawan.forEach(k=>{if(k.tgl_keluar&&k.tgl_keluar<=today())k.status='Nonaktif';});
   const s=await Api.loadSettings();if(s)S.settings={...S.settings,...s};
 }
 async function enter(){S.user=await Api.session();if(S.user&&S.user.role!=='pending')await reload();render();}
