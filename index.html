@@ -164,6 +164,11 @@ td.num,th.num{text-align:right}
 /* Modal */
 dialog{border:0;border-radius:12px;padding:0;width:min(640px,calc(100vw - 24px));max-height:calc(100dvh - 24px);color:var(--ink);box-shadow:0 24px 60px rgba(10,40,34,.3)}
 dialog.wide{width:min(900px,calc(100vw - 24px))}
+.sign-box{border:1px solid var(--line);border-radius:9px;padding:10px 14px;margin-bottom:14px}
+.sign-box summary{cursor:pointer;font-weight:700}
+.sign-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}
+.sign-slot{display:grid;gap:5px}.sign-slot b{font-size:13px}
+.sign-slot input{min-height:36px;padding:6px 9px;font-size:14px}
 .form-prev{width:100%;overflow:hidden;border:1px solid var(--line);border-radius:8px;background:#fff}
 .form-prev iframe{width:794px;height:1119px;border:0;transform-origin:0 0;display:block}
 dialog::backdrop{background:rgba(14,40,34,.55)}
@@ -188,6 +193,9 @@ dialog::backdrop{background:rgba(14,40,34,.55)}
 .slip-cols h3{font-size:14px;margin-bottom:5px}
 .slip-l{display:flex;justify-content:space-between;gap:8px;padding:4px 0;font-size:14px;border-bottom:1px dotted var(--line)}
 .slip-l.t{font-weight:700;border-bottom:0}
+.kblk{margin:6px 0 10px}.kblk>b{display:block;font-size:13px;color:var(--jade-d);margin-bottom:2px}
+.calc{background:var(--jade-l);border-radius:9px;padding:12px 14px}
+.calc .slip-l{border-bottom-color:rgba(0,0,0,.08)}
 .slip-net{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:14px;padding:12px 14px;background:var(--jade-l);border-radius:8px;font-weight:700}
 .slip-net b{font-size:21px;font-weight:800}
 
@@ -351,7 +359,18 @@ alter table public.karyawan
   add column if not exists kontrak_add4 date,
   add column if not exists no_kontrak_add5 text default '',
   add column if not exists kontrak_add5 date,
-  add column if not exists kontrak_berakhir date;
+  add column if not exists berlaku_mulai_awal date,
+  add column if not exists berlaku_selesai_awal date,
+  add column if not exists berlaku_mulai_add1 date,
+  add column if not exists berlaku_selesai_add1 date,
+  add column if not exists berlaku_mulai_add2 date,
+  add column if not exists berlaku_selesai_add2 date,
+  add column if not exists berlaku_mulai_add3 date,
+  add column if not exists berlaku_selesai_add3 date,
+  add column if not exists berlaku_mulai_add4 date,
+  add column if not exists berlaku_selesai_add4 date,
+  add column if not exists berlaku_mulai_add5 date,
+  add column if not exists berlaku_selesai_add5 date;
 
 create table public.profil(
   id uuid primary key references auth.users(id) on delete cascade,
@@ -469,6 +488,7 @@ begin
     select kuota_cuti into kuota from karyawan where id=new.karyawan_id;
     select coalesce(sum(hari),0) into terpakai from cuti c where c.karyawan_id=new.karyawan_id and c.jenis='Cuti Tahunan'
       and c.status<>'Ditolak' and c.id is distinct from new.id and extract(year from c.mulai)=extract(year from new.mulai);
+    terpakai := terpakai + coalesce((select sum(hari) from kompensasi k where k.karyawan_id=new.karyawan_id and k.status<>'Ditolak' and k.tahun=extract(year from new.mulai)),0);
     if terpakai+new.hari>kuota then raise exception 'Sisa kuota Cuti Tahunan tidak cukup (tersisa % hari).',kuota-terpakai; end if;
   end if;
   return new;
@@ -529,6 +549,57 @@ create policy hapus on public.karyawan_privat for delete to authenticated using 
 revoke all on public.karyawan_privat from anon;
 grant select,insert,update,delete on public.karyawan_privat to authenticated;
 
+create table if not exists public.tarif_tiket(
+  id uuid primary key default gen_random_uuid(),
+  transport text not null,
+  tujuan text not null,
+  harga numeric not null default 0 check (harga>=0),
+  unique(transport,tujuan)
+);
+create table if not exists public.kompensasi(
+  id uuid primary key default gen_random_uuid(),
+  karyawan_id uuid not null references public.karyawan(id) on delete cascade,
+  tahun int not null,
+  tanggal date not null default current_date,
+  hari int not null default 10 check (hari>0),
+  gaji numeric not null default 0 check (gaji>=0),
+  transport text default '',
+  tujuan text default '',
+  harga_tiket numeric not null default 0 check (harga_tiket>=0),
+  nilai_cuti numeric not null default 0,
+  total numeric not null default 0,
+  status text not null default 'Disetujui' check (status in ('Menunggu','Disetujui','Ditolak')),
+  catatan text default '',
+  created_at timestamptz not null default now()
+);
+create index if not exists kompensasi_karyawan on public.kompensasi(karyawan_id);
+
+create or replace function public.kompensasi_sebelum() returns trigger language plpgsql security definer set search_path=public as $$
+declare kuota int; terpakai int;
+begin
+  new.nilai_cuti := round(new.gaji/30*new.hari*0.5);
+  new.total := new.harga_tiket+new.nilai_cuti;
+  if new.status='Ditolak' then return new; end if;
+  select kuota_cuti into kuota from karyawan where id=new.karyawan_id;
+  select coalesce(sum(hari),0) into terpakai from cuti c where c.karyawan_id=new.karyawan_id and c.jenis='Cuti Tahunan' and c.status<>'Ditolak' and extract(year from c.mulai)=new.tahun;
+  terpakai := terpakai + coalesce((select sum(hari) from kompensasi k where k.karyawan_id=new.karyawan_id and k.status<>'Ditolak' and k.tahun=new.tahun and k.id is distinct from new.id),0);
+  if terpakai+new.hari>kuota then raise exception 'Sisa kuota cuti tahun % tidak cukup untuk kompensasi (tersisa % hari).',new.tahun,kuota-terpakai; end if;
+  return new;
+end $$;
+drop trigger if exists kompensasi_sebelum on public.kompensasi;
+create trigger kompensasi_sebelum before insert or update on public.kompensasi for each row execute function public.kompensasi_sebelum();
+
+alter table public.tarif_tiket enable row level security;
+alter table public.kompensasi enable row level security;
+drop policy if exists baca on public.kompensasi;
+drop policy if exists tulis on public.kompensasi;
+drop policy if exists tulis on public.tarif_tiket;
+create policy baca on public.kompensasi for select to authenticated using (my_role()='admin' or karyawan_id=my_karyawan());
+create policy tulis on public.kompensasi for all to authenticated using (my_role()='admin') with check (my_role()='admin');
+create policy tulis on public.tarif_tiket for all to authenticated using (my_role()='admin') with check (my_role()='admin');
+revoke all on public.tarif_tiket,public.kompensasi from anon;
+grant select,insert,update,delete on public.tarif_tiket,public.kompensasi to authenticated;
+
 revoke all on public.pengaturan,public.shift,public.karyawan,public.profil,public.cuti,public.slip_gaji,public.log_aktivitas from anon;
 grant select on public.pengaturan to anon;
 grant select,insert,update,delete on public.pengaturan,public.shift,public.karyawan,public.profil,public.cuti,public.slip_gaji,public.log_aktivitas to authenticated;
@@ -569,7 +640,7 @@ const MODE = SUPABASE_URL && SUPABASE_ANON_KEY ? 'cloud' : 'demo';
 const JENIS_CUTI = ['Cuti Tahunan','Izin','Sakit','Cuti Melahirkan','Cuti Besar','Cuti Lainnya'];
 const JENIS_KARYAWAN = ['Tetap','Kontrak','Magang','Harian'];
 const STATUS_CUTI = ['Menunggu','Disetujui','Ditolak'];
-const TRANSPORT = ['Pesawat','Bus','Kereta Api','Kapal Laut','Travel'];
+const TRANSPORT = ['Pesawat','Bus','Kereta Api','Kapal / Feri','Mobil Travel'];
 const BULAN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 const ROLE_LABEL = {admin:'Admin Personalia',staff:'Staff Personalia',karyawan:'Karyawan',pending:'Menunggu akses'};
 
@@ -639,7 +710,7 @@ function friendly(e){
   if(c==='42501'||/row-level security/i.test(m)) return 'Akun Anda tidak berhak melakukan tindakan ini.';
   if(/karyawan_privat|schema cache|column .* does not exist/i.test(m)) return 'Database belum diperbarui. Jalankan SQL pembaruan terbaru di Supabase, lalu muat ulang halaman.';
   if(/Bucket not found/i.test(m)) return 'Penyimpanan dokumen belum dibuat. Jalankan SQL pembaruan terbaru di Supabase.';
-  if(/uang_saku|tgl_berangkat|nama_proyek|dokumen_path/i.test(m)) return 'Database belum diperbarui. Jalankan SQL pembaruan terbaru di Supabase, lalu muat ulang halaman.';
+  if(/schema cache|does not exist|Could not find/i.test(m)&&/kompensasi|tarif_tiket|berlaku_mulai|uang_saku|tgl_berangkat|nama_proyek|dokumen_path/i.test(m)) return 'Database belum diperbarui. Jalankan SQL pembaruan terbaru di Supabase, lalu muat ulang halaman.';
   if(/Invalid login/i.test(m)) return 'Username/email atau kata sandi salah.';
   if(/rate limit|security purposes/i.test(m)) return 'Terlalu banyak permintaan email. Tunggu beberapa saat lalu coba lagi.';
   if(/Email not confirmed/i.test(m)) return 'Email belum dikonfirmasi. Buka tautan konfirmasi di kotak masuk Anda.';
@@ -659,10 +730,20 @@ const logoImgs=(alt='')=>`<span class="logos">${logos().map(l=>`<img src="${l}" 
 
 /* ---------- Status aplikasi ---------- */
 const S={user:null,settings:{perusahaan:'Nama Perusahaan',alamat:'',logo:'',logo2:'',logo3:'',nama_proyek:'',kuota_default:12},
-  d:{karyawan:[],karyawan_privat:[],shift:[],cuti:[],slip_gaji:[],profil:[],log_aktivitas:[]},privBy:new Map(),route:'',open:new Set(),authMode:'masuk',booted:false};
+  d:{karyawan:[],karyawan_privat:[],shift:[],kompensasi:[],tarif_tiket:[],cuti:[],slip_gaji:[],profil:[],log_aktivitas:[]},privBy:new Map(),route:'',open:new Set(),authMode:'masuk',booted:false};
 const F={};
 
 /* ---------- Validasi cuti (dipakai formulir, impor, dan mode demo) ---------- */
+function kompCalc(r){const nilai=Math.round(num(r.gaji)/30*num(r.hari)*0.5);return {nilai_cuti:nilai,total:num(r.harga_tiket)+nilai};}
+function checkKomp(r,ignoreId){
+  if(!(num(r.hari)>0))return 'Jumlah hari harus lebih dari 0.';
+  if(r.status==='Ditolak')return '';
+  const k=S.d.karyawan.find(x=>x.id===r.karyawan_id);if(!k)return '';
+  const y=String(r.tahun);
+  const used=S.d.cuti.filter(c=>c.karyawan_id===r.karyawan_id&&c.jenis==='Cuti Tahunan'&&c.status!=='Ditolak'&&c.mulai.startsWith(y)).reduce((a,c)=>a+num(c.hari),0)+(S.d.kompensasi||[]).filter(c=>c.karyawan_id===r.karyawan_id&&c.id!==ignoreId&&c.status!=='Ditolak'&&String(c.tahun)===y).reduce((a,c)=>a+num(c.hari),0);
+  if(used+num(r.hari)>num(k.kuota_cuti))return `Sisa kuota cuti tahun ${y} tidak cukup untuk kompensasi (tersisa ${num(k.kuota_cuti)-used} hari).`;
+  return '';
+}
 function checkCuti(r,ignoreId){
   if(r.selesai<r.mulai) return 'Tanggal selesai tidak boleh sebelum tanggal mulai.';
   if(r.tgl_berangkat&&r.tgl_kembali&&r.tgl_kembali<r.tgl_berangkat) return 'Tanggal kepulangan tidak boleh sebelum tanggal keberangkatan.';
@@ -674,7 +755,7 @@ function checkCuti(r,ignoreId){
   if(r.jenis==='Cuti Tahunan'){
     if(r.mulai.slice(0,4)!==r.selesai.slice(0,4)) return 'Cuti Tahunan lintas tahun harus diajukan terpisah per tahun.';
     const k=S.d.karyawan.find(x=>x.id===r.karyawan_id); if(!k) return '';
-    const used=lain.filter(c=>c.jenis==='Cuti Tahunan'&&c.mulai.slice(0,4)===r.mulai.slice(0,4)).reduce((a,c)=>a+num(c.hari),0);
+    const used=lain.filter(c=>c.jenis==='Cuti Tahunan'&&c.mulai.slice(0,4)===r.mulai.slice(0,4)).reduce((a,c)=>a+num(c.hari),0)+(S.d.kompensasi||[]).filter(c=>c.karyawan_id===r.karyawan_id&&c.status!=='Ditolak'&&String(c.tahun)===r.mulai.slice(0,4)).reduce((a,c)=>a+num(c.hari),0);
     if(used+hari>num(k.kuota_cuti)) return `Sisa kuota Cuti Tahunan tidak cukup (tersisa ${num(k.kuota_cuti)-used} hari).`;
   }
   return '';
@@ -682,13 +763,13 @@ function checkCuti(r,ignoreId){
 
 /* ---------- Backend: mode demo (tersimpan di browser ini) ---------- */
 function demoApi(){
-  const KEY='hr_monitoring_demo_v3'; let mem=null;
+  const KEY='hr_monitoring_demo_v4'; let mem=null;
   const read=()=>{ if(mem) return mem; try{const v=localStorage.getItem(KEY); if(v){mem=JSON.parse(v);return mem;}}catch(e){} mem=seed(); write(); return mem; };
   const write=()=>{try{localStorage.setItem(KEY,JSON.stringify(mem));}catch(e){}};
   function seed(){
     const sh=[['Reguler','08:00','17:00','Senin sampai Jumat'],['Pagi','06:00','14:00',''],['Siang','14:00','22:00',''],['Malam','22:00','06:00','']].map(a=>({id:uid(),nama:a[0],jam_mulai:a[1],jam_selesai:a[2],keterangan:a[3]}));
     const raw=[['Sari Wulandari','Analis Keuangan','Keuangan','Tetap'],['Budi Santoso','Supervisor Produksi','Produksi','Tetap'],['Dewi Lestari','Staf Administrasi','Administrasi','Kontrak'],['Agus Prasetyo','Operator Mesin','Produksi','Tetap'],['Rina Marlina','Staf Pemasaran','Pemasaran','Tetap'],['Hendra Gunawan','Teknisi','Teknik','Tetap'],['Putri Anggraini','Akuntan','Keuangan','Tetap'],['Fajar Nugroho','Operator Mesin','Produksi','Kontrak'],['Maya Sari','Desainer','Pemasaran','Kontrak'],['Rizki Ramadhan','Teknisi','Teknik','Tetap'],['Lina Kartika','Staf Gudang','Logistik','Tetap'],['Yusuf Hidayat','Pengemudi','Logistik','Harian'],['Nadia Putri','Peserta Magang','Administrasi','Magang'],['Bayu Saputra','Operator Mesin','Produksi','Tetap'],['Siti Rahmawati','Staf Pembelian','Logistik','Tetap'],['Dimas Pratama','Programmer','Teknik','Kontrak']];
-    const karyawan=raw.map((a,i)=>({id:uid(),nik:'EMP'+pad(i+1).padStart(3,'0'),nama:a[0],email:a[0].split(' ')[0].toLowerCase()+'@demo.test',telepon:'08120000'+pad(i+10)+'00',jabatan:a[1],departemen:a[2],tgl_masuk:`${2017+i%8}-${pad(i%12+1)}-0${i%8+1}`,jenis_karyawan:a[3],status:i===11?'Nonaktif':'Aktif',shift_id:sh[a[2]==='Produksi'?1+i%3:0].id,kuota_cuti:12,proyek:'Proyek Contoh',unit_kerja:'Proyek',lokasi:'Jakarta',no_kontrak_awal:`${pad(i+1)}/KTR/${2017+i%8}`,kontrak_berakhir:`${thisYear()+1}-06-30`,tgl_lahir:`${1985+i}-0${i%9+1}-15`,jenjang:'S1',created_at:new Date().toISOString()}));
+    const karyawan=raw.map((a,i)=>({id:uid(),nik:'EMP'+pad(i+1).padStart(3,'0'),nama:a[0],email:a[0].split(' ')[0].toLowerCase()+'@demo.test',telepon:'08120000'+pad(i+10)+'00',jabatan:a[1],departemen:a[2],tgl_masuk:`${2017+i%8}-${pad(i%12+1)}-0${i%8+1}`,jenis_karyawan:a[3],status:i===11?'Nonaktif':'Aktif',shift_id:sh[a[2]==='Produksi'?1+i%3:0].id,kuota_cuti:12,proyek:'Proyek Contoh',unit_kerja:'Proyek',lokasi:'Jakarta',no_kontrak_awal:`${pad(i+1)}/KTR/${2017+i%8}`,berlaku_mulai_awal:`${2017+i%8}-01-01`,berlaku_selesai_awal:`${2017+i%8}-12-31`,berlaku_mulai_add1:`${2018+i%8}-01-01`,berlaku_selesai_add1:`${thisYear()+1}-06-30`,kontrak_add1:`${2017+i%8}-12-15`,no_kontrak_add1:`${pad(i+1)}/ADD-1/${2017+i%8}`,tgl_lahir:`${1985+i}-0${i%9+1}-15`,jenjang:'S1',created_at:new Date().toISOString()}));
     const karyawan_privat=karyawan.map((k,i)=>({id:uid(),karyawan_id:k.id,npwp:'',no_kk:'',ktp:'',alamat_ktp:'',gaji:4500000+i*275000,kenaikan_gaji:0}));
     const y=thisYear(), now=new Date(), mm=now.getMonth()+1, cuti=[];
     const add=(i,j,a,b,st,al)=>cuti.push({id:uid(),karyawan_id:karyawan[i].id,jenis:j,mulai:a,selesai:b,hari:workdays(a,b),alasan:al,status:st,catatan:'',disetujui_oleh:st==='Disetujui'?'admin@demo.test':'',created_at:new Date().toISOString()});
@@ -714,7 +795,7 @@ function demoApi(){
       karyawan.slice(0,16).forEach((k,i)=>{ if(k.status!=='Aktif')return; const g=4500000+i*275000; slip_gaji.push({id:uid(),karyawan_id:k.id,periode:p,gaji_pokok:g,tunjangan:750000,lembur:(i%3)*250000,bonus:0,bpjs:Math.round(g*.04),pph21:Math.round(g*.025),potongan_lain:0,catatan:'',created_at:new Date().toISOString()});});
     }
     const profil=[{id:'u-admin',email:'admin@demo.test',nama:'Admin Personalia',role:'admin',created_at:new Date().toISOString()},{id:'u-staff',email:'staff@demo.test',nama:'Staff Personalia',role:'staff',created_at:new Date().toISOString()},{id:'u-sari',email:'sari@demo.test',nama:'Sari Wulandari',role:'karyawan',created_at:new Date().toISOString()}];
-    return {settings:{perusahaan:'Perusahaan Demo',alamat:'Jakarta',logo:'',kuota_default:12},shift:sh,karyawan,karyawan_privat,cuti,slip_gaji,profil,log_aktivitas:[],session:null};
+    return {settings:{perusahaan:'Perusahaan Demo',alamat:'Jakarta',logo:'',kuota_default:12},shift:sh,karyawan,karyawan_privat,cuti,slip_gaji,profil,kompensasi:[],tarif_tiket:[['Pesawat','Medan - Jakarta',1500000],['Pesawat','Medan - Surabaya',1800000],['Kapal / Feri','Medan - Batam',650000],['Bus','Medan - Pekanbaru',350000],['Mobil Travel','Medan - Padang',400000],['Kereta Api','Medan - Rantauprapat',180000]].map(a=>({id:uid(),transport:a[0],tujuan:a[1],harga:a[2]})),log_aktivitas:[],session:null};
   }
   const me=()=>{const r=read();return r.profil.find(p=>p.id===r.session)||null;};
   function allow(t,op,row){
@@ -727,7 +808,7 @@ function demoApi(){
   const myK=()=>{const u=me(),k=read().karyawan.find(x=>(x.email||'').toLowerCase()===u.email.toLowerCase());return k&&k.id;};
   const log=(aksi,detail)=>read().log_aktivitas.unshift({id:uid(),waktu:new Date().toISOString(),pelaku:me().email,aksi,detail});
   const unique=(t,row,id)=>{const r=read(); const dup=(k,val)=>val&&r[t].some(x=>x.id!==id&&String(x[k]||'').toLowerCase()===String(val).toLowerCase());
-    if(t==='karyawan'&&(dup('nik',row.nik)||dup('email',row.email))||t==='shift'&&dup('nama',row.nama)||t==='slip_gaji'&&r[t].some(x=>x.id!==id&&x.karyawan_id===row.karyawan_id&&x.periode===row.periode)) throw Object.assign(new Error('dup'),{code:'23505'});};
+    if(t==='karyawan'&&(dup('nik',row.nik)||dup('email',row.email))||t==='tarif_tiket'&&r[t].some(x=>x.id!==id&&x.transport===row.transport&&x.tujuan.toLowerCase()===String(row.tujuan).toLowerCase())||t==='slip_gaji'&&r[t].some(x=>x.id!==id&&x.karyawan_id===row.karyawan_id&&x.periode===row.periode)) throw Object.assign(new Error('dup'),{code:'23505'});};
   return {
     async session(){return me();},
     async signInDemo(id){const r=read();r.session=id;write();},
@@ -736,16 +817,17 @@ function demoApi(){
     async loadAll(){const r=read();const role=me().role;
       if(role==='admin') return r;
       if(role==='staff') return {karyawan:r.karyawan,shift:r.shift};
-      const k=myK();return {karyawan:r.karyawan.filter(x=>x.id===k),karyawan_privat:r.karyawan_privat.filter(x=>x.karyawan_id===k),shift:r.shift,cuti:r.cuti.filter(x=>x.karyawan_id===k),slip_gaji:r.slip_gaji.filter(x=>x.karyawan_id===k)};},
+      const k=myK();return {karyawan:r.karyawan.filter(x=>x.id===k),karyawan_privat:r.karyawan_privat.filter(x=>x.karyawan_id===k),shift:r.shift,kompensasi:(r.kompensasi||[]).filter(x=>x.karyawan_id===k),cuti:r.cuti.filter(x=>x.karyawan_id===k),slip_gaji:r.slip_gaji.filter(x=>x.karyawan_id===k)};},
     async insert(t,rows){const r=read();const copy=JSON.parse(JSON.stringify(r));
       try{ for(const row of rows){allow(t,'insert',row);unique(t,row);const x={id:uid(),created_at:new Date().toISOString(),...row};
         if(t==='cuti'){if(me().role!=='admin'){x.uang_saku=0;x.catatan='';}S.d.cuti=r.cuti;S.d.karyawan=r.karyawan;const e=checkCuti(x);if(e)throw new Error(e);x.hari=workdays(x.mulai,x.selesai);}
+        if(t==='kompensasi'){S.d.cuti=r.cuti;S.d.kompensasi=r.kompensasi;S.d.karyawan=r.karyawan;Object.assign(x,kompCalc(x));const e=checkKomp(x);if(e)throw new Error(e);}
         r[t].push(x); if(t==='karyawan')log('Tambah karyawan',x.nik+' - '+x.nama);} }
       catch(e){mem=copy;throw e;} write();},
     async update(t,ids,patch){const r=read();for(const id of ids){const x=r[t].find(y=>y.id===id);allow(t,'update',x);unique(t,{...x,...patch},id);
-      const n={...x,...patch};if(t==='cuti'){const e=checkCuti(n,id);if(e)throw new Error(e);n.hari=workdays(n.mulai,n.selesai);}Object.assign(x,n);}write();},
+      const n={...x,...patch};if(t==='cuti'){const e=checkCuti(n,id);if(e)throw new Error(e);n.hari=workdays(n.mulai,n.selesai);}if(t==='kompensasi'){Object.assign(n,kompCalc(n));const e=checkKomp(n,id);if(e)throw new Error(e);}Object.assign(x,n);}write();},
     async remove(t,id){const r=read();const x=r[t].find(y=>y.id===id);allow(t,'delete',x);r[t]=r[t].filter(y=>y.id!==id);
-      if(t==='karyawan'){log('Hapus karyawan',x.nik+' - '+x.nama);r.cuti=r.cuti.filter(c=>c.karyawan_id!==id);r.slip_gaji=r.slip_gaji.filter(c=>c.karyawan_id!==id);r.karyawan_privat=r.karyawan_privat.filter(c=>c.karyawan_id!==id);}
+      if(t==='karyawan'){log('Hapus karyawan',x.nik+' - '+x.nama);r.cuti=r.cuti.filter(c=>c.karyawan_id!==id);r.slip_gaji=r.slip_gaji.filter(c=>c.karyawan_id!==id);r.karyawan_privat=r.karyawan_privat.filter(c=>c.karyawan_id!==id);r.kompensasi=(r.kompensasi||[]).filter(c=>c.karyawan_id!==id);}
       if(t==='shift')r.karyawan.forEach(k=>{if(k.shift_id===id)k.shift_id=null;});write();},
     async upsertPriv(row){allow('karyawan_privat','update',row);const r=read(),x=r.karyawan_privat.find(p=>p.karyawan_id===row.karyawan_id);if(x)Object.assign(x,row);else r.karyawan_privat.push({id:uid(),...row});write();},
     async saveSettings(p){Object.assign(read().settings,p);write();},
@@ -772,7 +854,7 @@ function cloudApi(){
     async updatePw(password){ok(await sb.auth.updateUser({password}));},
     async signOut(){await sb.auth.signOut();},
     async loadSettings(){return ok(await sb.from('pengaturan').select('*').eq('id',1).maybeSingle());},
-    async loadAll(role){const tables={admin:['karyawan','karyawan_privat','shift','cuti','slip_gaji','profil','log_aktivitas'],staff:['karyawan','shift'],karyawan:['karyawan','karyawan_privat','shift','cuti','slip_gaji']}[role]||[];
+    async loadAll(role){const tables={admin:['karyawan','karyawan_privat','kompensasi','tarif_tiket','cuti','slip_gaji','profil','log_aktivitas'],staff:['karyawan','shift'],karyawan:['karyawan','karyawan_privat','kompensasi','cuti','slip_gaji']}[role]||[];
       const res=await Promise.all(tables.map(all));const o={};tables.forEach((t,i)=>o[t]=res[i]);return o;},
     async insert(t,rows){ok(await sb.from(t).insert(rows));},
     async upsertPriv(row){ok(await sb.from('karyawan_privat').upsert(row,{onConflict:'karyawan_id'}));},
@@ -794,16 +876,18 @@ const net=s=>num(s.gaji_pokok)+num(s.tunjangan)+num(s.lembur)+num(s.bonus)-num(s
 function kuotaOf(k,y){
   const list=S.d.cuti.filter(c=>c.karyawan_id===k.id&&c.jenis==='Cuti Tahunan'&&c.mulai.startsWith(String(y)));
   const pakai=list.filter(c=>c.status==='Disetujui').reduce((a,c)=>a+num(c.hari),0);
-  const tunggu=list.filter(c=>c.status==='Menunggu').reduce((a,c)=>a+num(c.hari),0);
-  const kuota=num(k.kuota_cuti);
-  return {kuota,pakai,tunggu,sisa:kuota-pakai};
+  const kl=(S.d.kompensasi||[]).filter(c=>c.karyawan_id===k.id&&String(c.tahun)===String(y));
+  const komp=kl.filter(c=>c.status==='Disetujui').reduce((a,c)=>a+num(c.hari),0);
+  const tunggu=list.filter(c=>c.status==='Menunggu').reduce((a,c)=>a+num(c.hari),0)+kl.filter(c=>c.status==='Menunggu').reduce((a,c)=>a+num(c.hari),0);
+  const kuota=num(k.kuota_cuti),p=pakai+komp;
+  return {kuota,pakai:p,cuti:pakai,komp,tunggu,sisa:kuota-p};
 }
 function punch(q){
   let h='';for(let i=0;i<Math.max(q.kuota,q.pakai+q.tunggu);i++){h+=`<i class="${i<q.pakai?'used':i<q.pakai+q.tunggu?'wait':''}"></i>`;}
   return `<span class="punch" role="img" aria-label="Terpakai ${q.pakai}, menunggu ${q.tunggu}, kuota ${q.kuota} hari">${h}</span>`;
 }
 const badge=s=>`<span class="badge ${{Disetujui:'ok',Aktif:'ok',Menunggu:'wait',Ditolak:'no',Nonaktif:'no',admin:'ok',staff:'info',pending:'wait'}[s]||''}">${esc(ROLE_LABEL[s]||s)}</span>`;
-const years=()=>{const s=new Set([thisYear()]);S.d.cuti.forEach(c=>s.add(+c.mulai.slice(0,4)));return [...s].sort((a,b)=>b-a).map(String);};
+const years=()=>{const s=new Set([thisYear()]);S.d.cuti.forEach(c=>s.add(+c.mulai.slice(0,4)));(S.d.kompensasi||[]).forEach(c=>s.add(+c.tahun));return [...s].sort((a,b)=>b-a).map(String);};
 const depts=()=>[...new Set(S.d.karyawan.map(k=>k.departemen).filter(Boolean))].sort();
 const periods=()=>[...new Set(S.d.slip_gaji.map(s=>s.periode))].sort().reverse();
 const isOffToday=c=>c.status==='Disetujui'&&c.mulai<=today()&&c.selesai>=today();
@@ -907,7 +991,7 @@ const NAV={
   admin:[
     {g:'Dashboard',i:'home',items:[['ringkasan','Ringkasan Personalia']]},
     {g:'Data Karyawan',i:'users',items:[['karyawan','Daftar karyawan'],['impor','Impor & ekspor']]},
-    {g:'Cuti & Izin',i:'cal',items:[['cuti','Monitoring cuti'],['kuota','Sisa kuota tahunan']]},
+    {g:'Cuti & Izin',i:'cal',items:[['cuti','Monitoring cuti'],['kuota','Sisa kuota tahunan'],['kompensasi','Kompensasi cuti'],['tarif','Tarif tiket']]},
     {g:'Penggajian',i:'money',items:[['slip','Slip gaji digital']]},
     {g:'Laporan',i:'doc',items:[['lap-karyawan','Rekap karyawan'],['lap-cuti','Rekap cuti per karyawan'],['lap-gaji','Rekap gaji per periode']]},
     {g:'Pengaturan',i:'gear',items:[['pengguna','Pengguna & hak akses'],['perusahaan','Perusahaan & logo'],['log','Riwayat aktivitas']]}
@@ -925,8 +1009,13 @@ const PRIV_KEYS=['npwp','no_kk','ktp','alamat_ktp','gaji','kenaikan_gaji'];
 const privOf=k=>S.privBy.get(k.id)||{};
 const jenisList=()=>[...new Set(S.d.karyawan.map(k=>k.jenis_karyawan).filter(Boolean))].sort();
 function usiaOf(d){if(!d)return '';const t=today();let u=+t.slice(0,4)-+d.slice(0,4);if(t.slice(5)<d.slice(5))u--;return u;}
-function masaStart(k){return k.tgl_masuk?{d:k.tgl_masuk,l:'KONTRAK AWAL'}:null;}
-function masaKerja(k){const st=masaStart(k);if(!st)return '';const a=st.d,b=k.kontrak_berakhir||today();let m=(+b.slice(0,4)-+a.slice(0,4))*12+(+b.slice(5,7)-+a.slice(5,7)),d=+b.slice(8,10)-+a.slice(8,10);if(d<0){m--;d+=new Date(Date.UTC(+b.slice(0,4),+b.slice(5,7)-1,0)).getUTCDate();}if(m<0)return '';return [Math.floor(m/12)?Math.floor(m/12)+' th':'',m%12?m%12+' bln':'',d?d+' hr':''].filter(Boolean).join(' ')||'0 hr';}
+const KONTRAK_KEYS=['awal','add1','add2','add3','add4','add5'];
+function masaRange(k){
+  const st=KONTRAK_KEYS.map(x=>k['berlaku_mulai_'+x]).filter(Boolean).sort()[0]||k.tgl_masuk;if(!st)return null;
+  const last=KONTRAK_KEYS.map(x=>k['berlaku_selesai_'+x]).filter(Boolean).sort().pop();
+  const t=today(),end=last&&last<t?last:t;if(end<st)return null;return {a:st,b:end,toToday:end===t&&(!last||last>=t)};
+}
+function masaKerja(k){const r=masaRange(k);if(!r)return '';const nx=new Date(Date.parse(r.b+'T00:00:00Z')+864e5).toISOString().slice(0,10),a=r.a,b=nx;let m=(+b.slice(0,4)-+a.slice(0,4))*12+(+b.slice(5,7)-+a.slice(5,7)),d=+b.slice(8,10)-+a.slice(8,10);if(d<0){m--;d+=new Date(Date.UTC(+b.slice(0,4),+b.slice(5,7)-1,0)).getUTCDate();}if(m<0)return '';return [Math.floor(m/12)?Math.floor(m/12)+' th':'',m%12?m%12+' bln':'',d?d+' hr':''].filter(Boolean).join(' ')||'0 hr';}
 const karyawanXCols=()=>IMPORT_DEF.karyawan.cols.filter(c=>c.k!=='_no').map(c=>({l:c.h,hide:!!c.hide,pw:c.pw||24,t:c.date?'date':c.n?'money':undefined,v:c.k==='_umur'?r=>usiaOf(r.tgl_lahir):c.k==='_masa'?r=>masaKerja(r):PRIV_KEYS.includes(c.k)?r=>privOf(r)[c.k]:r=>r[c.k]}));
 function splitEmp(r){const b={},p={};Object.entries(r).forEach(([k,v])=>{(PRIV_KEYS.includes(k)?p:b)[k]=v;});return {b,p};}
 async function insertEmp(rows){const base=[],priv=[];rows.forEach(r=>{const {b,p}=splitEmp(r);b.id=uid();base.push(b);priv.push({...p,karyawan_id:b.id});});await Api.insert('karyawan',base);await Api.insert('karyawan_privat',priv);}
@@ -940,10 +1029,22 @@ const CUTI_TRIP_COLS=[{l:'Tgl berangkat',t:'date',only:'x',v:r=>r.tgl_berangkat}
   {l:'Perjalanan',only:'s',v:r=>r.transport||'',h:r=>r.transport||r.tgl_berangkat?`<span class="name" style="font-weight:600">${esc(r.transport||'-')}</span><span class="sub-t">${r.tgl_berangkat?fmtDate(r.tgl_berangkat):'-'} sampai ${r.tgl_kembali?fmtDate(r.tgl_kembali):'-'}</span>`:'<span class="muted">-</span>'},
   {l:'Transportasi',only:'x',v:r=>r.transport||''},{l:'Uang saku',t:'money',v:r=>r.uang_saku},{l:'Alamat & no telp',only:'x',v:r=>r.alamat_telp||''},{l:'Dokumen',only:'x',v:r=>r.dokumen_nama||''}];
 const cutiDocBtns=r=>`<button class="btn sm" data-act="cuti-form" data-id="${r.id}">Form</button>`+(r.dokumen_path?`<button class="btn sm" data-act="dok-open" data-id="${r.id}">Dokumen</button>`:'');
+const KOMP_COLS=[{l:'No File Kontrak',only:'x',v:byEmp(k=>k.nik)},{l:'Karyawan',v:byEmp(k=>k.nama),h:byEmp(k=>`<span class="name">${esc(k.nama)}</span><span class="sub-t">${esc(k.jabatan||k.departemen||'')}</span>`)},{l:'Tahun kuota',v:r=>String(r.tahun)},{l:'Tanggal',t:'date',only:'x',v:r=>r.tanggal},{l:'Hari',t:'num',v:r=>r.hari,total:1},{l:'Jumlah gaji',t:'money',v:r=>r.gaji},{l:'Transportasi',only:'x',v:r=>r.transport||''},{l:'Tujuan',only:'x',v:r=>r.tujuan||''},{l:'Harga tiket',t:'money',v:r=>r.harga_tiket,h:r=>`${rupiah(r.harga_tiket)}${r.transport?`<span class="sub-t">${esc(r.transport)}${r.tujuan?', '+esc(r.tujuan):''}</span>`:''}`},{l:'Nilai kompensasi cuti',t:'money',v:r=>r.nilai_cuti},{l:'Total pengganti',t:'money',v:r=>r.total,h:r=>`<b>${rupiah(r.total)}</b>`},{l:'Status',v:r=>r.status,h:r=>badge(r.status)},{l:'Catatan',only:'x',v:r=>r.catatan||''}];
 const PAGES={
+  kompensasi:()=>({title:'Kompensasi Cuti',desc:'Jatah cuti yang tidak diambil dan diuangkan. Hari yang dikompensasikan tetap mengurangi kuota cuti tahunan.',total:true,
+    cols:KOMP_COLS,
+    rows:f=>S.d.kompensasi.filter(r=>(!f.y||String(r.tahun)===f.y)&&(!f.st||r.status===f.st)&&(!f.tr||r.transport===f.tr)&&(!f.dep||emp(r.karyawan_id).departemen===f.dep)).sort((a,b)=>(a.status==='Menunggu'?0:1)-(b.status==='Menunggu'?0:1)||String(b.tanggal).localeCompare(String(a.tanggal))),
+    filters:[fOpt('y','Tahun',years,'Semua',String(thisYear())),fOpt('st','Status',()=>STATUS_CUTI),fOpt('tr','Transportasi',()=>TRANSPORT),fOpt('dep','Divisi',depts)],
+    addLabel:'Tambah kompensasi',addAct:'komp-add',
+    acts:r=>(r.status==='Menunggu'?`<button class="btn sm primary" data-act="komp-ok" data-id="${r.id}">Setujui</button><button class="btn sm" data-act="komp-no" data-id="${r.id}">Tolak</button>`:'')+`<button class="btn sm" data-act="komp-view" data-id="${r.id}">Rincian</button><button class="btn sm" data-act="komp-edit" data-id="${r.id}">Ubah</button><button class="btn sm danger" data-act="komp-del" data-id="${r.id}">Hapus</button>`}),
+  tarif:()=>({title:'Tarif Tiket',desc:'Harga tiket per transportasi dan tujuan. Dipakai otomatis saat menghitung kompensasi cuti.',
+    cols:[{l:'Transportasi',v:r=>r.transport,h:r=>`<span class="name">${esc(r.transport)}</span>`},{l:'Tujuan / lokasi asal',v:r=>r.tujuan},{l:'Harga tiket',t:'money',v:r=>r.harga}],
+    rows:f=>S.d.tarif_tiket.filter(r=>!f.tr||r.transport===f.tr).sort((a,b)=>a.transport.localeCompare(b.transport)||a.tujuan.localeCompare(b.tujuan)),
+    filters:[fOpt('tr','Transportasi',()=>TRANSPORT)],addLabel:'Tambah tarif',addAct:'tarif-add',
+    acts:r=>`<button class="btn sm" data-act="tarif-edit" data-id="${r.id}">Ubah</button><button class="btn sm danger" data-act="tarif-del" data-id="${r.id}">Hapus</button>`}),
   karyawan:()=>({title:'Data Karyawan',desc:isAdmin()?'Kelola biodata, kontrak, dan kuota cuti setiap karyawan.':'Portal Staff Personalia: Anda dapat menambahkan dan menghapus data karyawan.',
     xCols:karyawanXCols,xStyle:{gold:true,sign:true,freeze:3,noLabel:'NO',font:{name:'Trebuchet MS',size:9}},
-    cols:[COL.nik,{l:'Nama',v:r=>r.nama,h:r=>`<span class="name">${esc(r.nama)}</span><span class="sub-t">${esc(r.jabatan||'')}</span>`},{l:'Email',only:'x',v:r=>r.email||''},{l:'Jabatan',only:'x',v:r=>r.jabatan},{l:'Divisi',v:r=>r.departemen},{l:'Status pegawai',v:r=>r.jenis_karyawan},{l:'Proyek',v:r=>r.proyek||'',h:r=>`<span style="display:block;max-width:240px;white-space:normal">${esc(r.proyek||'-')}</span>`},{l:'Kontrak berakhir',t:'date',v:r=>r.kontrak_berakhir},{l:'Masa kerja',v:r=>masaKerja(r),h:r=>`<span class="nowrap">${esc(masaKerja(r)||'-')}</span>`},{l:'Status',v:r=>r.status,h:r=>badge(r.status)}],
+    cols:[COL.nik,{l:'Nama',v:r=>r.nama,h:r=>`<span class="name">${esc(r.nama)}</span><span class="sub-t">${esc(r.jabatan||'')}</span>`},{l:'Email',only:'x',v:r=>r.email||''},{l:'Jabatan',only:'x',v:r=>r.jabatan},{l:'Divisi',v:r=>r.departemen},{l:'Status pegawai',v:r=>r.jenis_karyawan},{l:'Proyek',v:r=>r.proyek||'',h:r=>`<span style="display:block;max-width:240px;white-space:normal">${esc(r.proyek||'-')}</span>`},{l:'Masa kerja',v:r=>masaKerja(r),h:r=>`<span class="nowrap">${esc(masaKerja(r)||'-')}</span>`},{l:'Status',v:r=>r.status,h:r=>badge(r.status)}],
     rows:f=>S.d.karyawan.filter(r=>(!f.dep||r.departemen===f.dep)&&(!f.jenis||r.jenis_karyawan===f.jenis)&&(!f.pro||r.proyek===f.pro)&&(!f.st||r.status===f.st)).sort((a,b)=>a.nama.localeCompare(b.nama)),
     filters:[fOpt('dep','Divisi',depts),fOpt('jenis','Status pegawai',jenisList),fOpt('pro','Proyek',()=>[...new Set(S.d.karyawan.map(k=>k.proyek).filter(Boolean))].sort()),fOpt('st','Status',()=>['Aktif','Nonaktif'])],
     addLabel:'Tambah karyawan',addAct:'emp-add',noExport:!isAdmin(),
@@ -1058,14 +1159,14 @@ function renderBeranda(){
   const q=kuotaOf(k,thisYear()),last=[...S.d.slip_gaji].sort((a,b)=>b.periode.localeCompare(a.periode))[0],wait=S.d.cuti.filter(c=>c.status==='Menunggu').length;
   $('#view').innerHTML=`<div class="page-h"><div><h1>Halo, ${esc(k.nama)}</h1><p>${esc(k.jabatan)}${k.departemen?', '+esc(k.departemen):''}</p></div><div class="tools"><button class="btn primary" data-act="cuti-ajukan">Ajukan cuti</button></div></div>
   <div class="grid2"><section class="panel" style="grid-column:1/-1"><div class="panel-h"><h2>Kuota Cuti Tahunan ${thisYear()}</h2><span class="sisa ${q.sisa<=2?'low':''}">${q.sisa} hari tersisa</span></div><div class="panel-b">${punch(q)}<p class="muted small" style="margin-top:9px">${q.pakai} hari terpakai, ${q.tunggu} hari menunggu persetujuan, dari kuota ${q.kuota} hari.</p></div></section>
-  <section class="panel"><div class="panel-h"><h2>Kontrak saya</h2></div><div class="panel-b"><p class="name">${esc(masaKerja(k)||'-')}</p><p class="muted">Masa kerja, ${fmtDate(k.tgl_masuk)} sampai ${k.kontrak_berakhir?fmtDate(k.kontrak_berakhir):'hari ini'}</p><p class="muted small" style="margin-top:8px">Pengajuan menunggu: ${wait}</p></div></section>
+  <section class="panel"><div class="panel-h"><h2>Kontrak saya</h2></div><div class="panel-b"><p class="name">${esc(masaKerja(k)||'-')}</p><p class="muted">${masaRange(k)?`Masa kerja, ${fmtDate(masaRange(k).a)} sampai ${masaRange(k).toToday?'hari ini':fmtDate(masaRange(k).b)}`:'Masa berlaku kontrak belum diisi.'}</p><p class="muted small" style="margin-top:8px">Pengajuan menunggu: ${wait}</p></div></section>
   <section class="panel"><div class="panel-h"><h2>Slip gaji terbaru</h2></div><div class="panel-b">${last?`<p class="name">${fmtPeriod(last.periode)}</p><p style="font-size:22px;font-weight:800">${rupiah(net(last))}</p><button class="btn sm" style="margin-top:8px" data-act="slip-view" data-id="${last.id}">Lihat & unduh</button>`:'<p class="muted">Belum ada slip gaji.</p>'}</div></section></div>`;
 }
 function renderKuotaSaya(){
   const k=myEmp();if(!k)return renderBeranda();
   const list=years().map(y=>({y,q:kuotaOf(k,y)}));
-  $('#view').innerHTML=`<div class="page-h"><div><h1>Sisa Kuota Cuti Tahunan</h1><p>Hanya Cuti Tahunan yang mengurangi kuota. Sisa dihitung dari cuti yang sudah disetujui.</p></div></div>
-  <div class="panel">${list.map(({y,q})=>`<div class="row-i" style="flex-wrap:wrap"><div><span class="name">${y}</span><span class="sub-t">${q.pakai} terpakai, ${q.tunggu} menunggu, kuota ${q.kuota}</span></div><div>${punch(q)}</div><span class="sisa ${q.sisa<=2?'low':''}">${q.sisa} hari</span></div>`).join('')}</div>`;
+  $('#view').innerHTML=`<div class="page-h"><div><h1>Sisa Kuota Cuti Tahunan</h1><p>Kuota berkurang oleh Cuti Tahunan dan kompensasi cuti yang sudah disetujui.</p></div></div>
+  <div class="panel">${list.map(({y,q})=>`<div class="row-i" style="flex-wrap:wrap"><div><span class="name">${y}</span><span class="sub-t">${q.cuti} hari cuti${q.komp?`, ${q.komp} hari dikompensasikan`:''}, ${q.tunggu} menunggu, kuota ${q.kuota}</span></div><div>${punch(q)}</div><span class="sisa ${q.sisa<=2?'low':''}">${q.sisa} hari</span></div>`).join('')}</div>`;
 }
 
 /* ---------- Impor ---------- */
@@ -1091,20 +1192,31 @@ const IMPORT_DEF={
     {h:'Jabatan Fungsional',k:'jabatan_fungsional',eg:'',fmt:'Teks',hide:1},
     {h:'DIVISI',k:'departemen',eg:'Project Control',fmt:'Teks',pw:30},
     {h:'NPWP',k:'npwp',eg:'00 000 000 0 000 000',fmt:'Teks',text:1,pw:38},
-    {h:'NO KONTRAK AWAL',k:'no_kontrak_awal',eg:'001/KTR/2024',fmt:'Nomor kontrak (teks)',text:1,pw:34},
-    {h:'KONTRAK AWAL',k:'tgl_masuk',eg:'2024-01-15',fmt:'YYYY-MM-DD atau DD/MM/YYYY',date:1},
-    {h:'NO KONTRAK ADD 1',k:'no_kontrak_add1',eg:'',fmt:'Nomor kontrak (teks)',text:1,pw:34},
-    {h:'KONTRAK ADD 1',k:'kontrak_add1',eg:'',fmt:'Tanggal mulai addendum 1',date:1},
-    {h:'NO KONTRAK ADD 2',k:'no_kontrak_add2',eg:'',fmt:'Nomor kontrak (teks)',text:1,pw:34},
-    {h:'KONTRAK ADD 2',k:'kontrak_add2',eg:'',fmt:'Tanggal mulai addendum 2',date:1},
-    {h:'NO KONTRAK ADD 3',k:'no_kontrak_add3',eg:'',fmt:'Nomor kontrak (teks)',text:1,pw:34},
-    {h:'KONTRAK ADD 3',k:'kontrak_add3',eg:'',fmt:'Tanggal mulai addendum 3',date:1},
-    {h:'NO KONTRAK ADD 4',k:'no_kontrak_add4',eg:'',fmt:'Nomor kontrak (teks)',text:1,pw:34},
-    {h:'KONTRAK ADD 4',k:'kontrak_add4',eg:'',fmt:'Tanggal mulai addendum 4',date:1},
-    {h:'NO KONTRAK ADD 5',k:'no_kontrak_add5',eg:'',fmt:'Nomor kontrak (teks)',text:1,pw:34},
-    {h:'KONTRAK ADD 5',k:'kontrak_add5',eg:'',fmt:'Tanggal mulai addendum 5',date:1},
-    {h:'KONTRAK BERAKHIR',k:'kontrak_berakhir',eg:'2024-12-31',fmt:'Tanggal akhir kontrak',date:1},
-    {h:'MASA KERJA',k:'_masa',ign:1,eg:'',fmt:'Dihitung otomatis dari Kontrak Awal sampai Kontrak Berakhir',pw:24},
+    {h:'NOMOR KONTRAK AWAL',k:'no_kontrak_awal',alias:['NO KONTRAK AWAL'],eg:'001/KTR/2026',fmt:'Nomor kontrak (teks)',text:1,pw:34,kg:'awal'},
+    {h:'TANGGAL KONTRAK AWAL',k:'tgl_masuk',alias:['KONTRAK AWAL'],eg:'2026-01-01',fmt:'Tanggal kontrak ditandatangani',date:1,kg:'awal'},
+    {h:'MASA BERLAKU KONTRAK AWAL (MULAI)',k:'berlaku_mulai_awal',eg:'2026-01-01',fmt:'Tanggal mulai berlaku',date:1,kg:'awal'},
+    {h:'MASA BERLAKU KONTRAK AWAL (SELESAI)',k:'berlaku_selesai_awal',alias:['KONTRAK AKHIR'],eg:'2026-03-31',fmt:'Tanggal akhir berlaku',date:1,kg:'awal'},
+    {h:'NOMOR KONTRAK ADD 1',k:'no_kontrak_add1',alias:['NO KONTRAK ADD 1'],eg:'',fmt:'Nomor kontrak (teks)',text:1,pw:34,kg:'add1'},
+    {h:'TANGGAL KONTRAK ADD 1',k:'kontrak_add1',alias:['KONTRAK ADD 1'],eg:'',fmt:'Tanggal kontrak ditandatangani',date:1,kg:'add1'},
+    {h:'MASA BERLAKU KONTRAK ADD 1 (MULAI)',k:'berlaku_mulai_add1',eg:'',fmt:'Tanggal mulai berlaku',date:1,kg:'add1'},
+    {h:'MASA BERLAKU KONTRAK ADD 1 (SELESAI)',k:'berlaku_selesai_add1',eg:'',fmt:'Tanggal akhir berlaku',date:1,kg:'add1'},
+    {h:'NOMOR KONTRAK ADD 2',k:'no_kontrak_add2',alias:['NO KONTRAK ADD 2'],eg:'',fmt:'Nomor kontrak (teks)',text:1,pw:34,kg:'add2'},
+    {h:'TANGGAL KONTRAK ADD 2',k:'kontrak_add2',alias:['KONTRAK ADD 2'],eg:'',fmt:'Tanggal kontrak ditandatangani',date:1,kg:'add2'},
+    {h:'MASA BERLAKU KONTRAK ADD 2 (MULAI)',k:'berlaku_mulai_add2',eg:'',fmt:'Tanggal mulai berlaku',date:1,kg:'add2'},
+    {h:'MASA BERLAKU KONTRAK ADD 2 (SELESAI)',k:'berlaku_selesai_add2',eg:'',fmt:'Tanggal akhir berlaku',date:1,kg:'add2'},
+    {h:'NOMOR KONTRAK ADD 3',k:'no_kontrak_add3',alias:['NO KONTRAK ADD 3'],eg:'',fmt:'Nomor kontrak (teks)',text:1,pw:34,kg:'add3'},
+    {h:'TANGGAL KONTRAK ADD 3',k:'kontrak_add3',alias:['KONTRAK ADD 3'],eg:'',fmt:'Tanggal kontrak ditandatangani',date:1,kg:'add3'},
+    {h:'MASA BERLAKU KONTRAK ADD 3 (MULAI)',k:'berlaku_mulai_add3',eg:'',fmt:'Tanggal mulai berlaku',date:1,kg:'add3'},
+    {h:'MASA BERLAKU KONTRAK ADD 3 (SELESAI)',k:'berlaku_selesai_add3',eg:'',fmt:'Tanggal akhir berlaku',date:1,kg:'add3'},
+    {h:'NOMOR KONTRAK ADD 4',k:'no_kontrak_add4',alias:['NO KONTRAK ADD 4'],eg:'',fmt:'Nomor kontrak (teks)',text:1,pw:34,kg:'add4'},
+    {h:'TANGGAL KONTRAK ADD 4',k:'kontrak_add4',alias:['KONTRAK ADD 4'],eg:'',fmt:'Tanggal kontrak ditandatangani',date:1,kg:'add4'},
+    {h:'MASA BERLAKU KONTRAK ADD 4 (MULAI)',k:'berlaku_mulai_add4',eg:'',fmt:'Tanggal mulai berlaku',date:1,kg:'add4'},
+    {h:'MASA BERLAKU KONTRAK ADD 4 (SELESAI)',k:'berlaku_selesai_add4',eg:'',fmt:'Tanggal akhir berlaku',date:1,kg:'add4'},
+    {h:'NOMOR KONTRAK ADD 5',k:'no_kontrak_add5',alias:['NO KONTRAK ADD 5'],eg:'',fmt:'Nomor kontrak (teks)',text:1,pw:34,kg:'add5'},
+    {h:'TANGGAL KONTRAK ADD 5',k:'kontrak_add5',alias:['KONTRAK ADD 5'],eg:'',fmt:'Tanggal kontrak ditandatangani',date:1,kg:'add5'},
+    {h:'MASA BERLAKU KONTRAK ADD 5 (MULAI)',k:'berlaku_mulai_add5',eg:'',fmt:'Tanggal mulai berlaku',date:1,kg:'add5'},
+    {h:'MASA BERLAKU KONTRAK ADD 5 (SELESAI)',k:'berlaku_selesai_add5',eg:'',fmt:'Tanggal akhir berlaku',date:1,kg:'add5'},
+    {h:'MASA KERJA',k:'_masa',ign:1,eg:'',fmt:'Dihitung otomatis dari masa berlaku kontrak paling awal sampai paling akhir',pw:24},
     {h:'KENAIKAN GAJI',k:'kenaikan_gaji',eg:0,fmt:'Angka tanpa Rp',n:1,pw:30},
     {h:'GAJI',k:'gaji',eg:5000000,fmt:'Angka tanpa Rp',n:1,pw:30},
     {h:'NO KK',k:'no_kk',eg:'',fmt:'Teks',text:1,hide:1},
@@ -1182,7 +1294,7 @@ async function readImport(file){
   const D=IMPORT_DEF[imp.kind];if(!grid.length)throw new Error('File kosong.');
   const reqH=D.cols.filter(c=>c.req).map(c=>normH(c.h));
   let hr=grid.slice(0,12).findIndex(r=>reqH.every(h=>r.map(normH).includes(h)));if(hr<0)hr=0;
-  const head=grid[hr].map(normH),idx={},used=new Set();D.cols.forEach(c=>{const n=normH(c.h);const i=head.findIndex((h,j)=>h===n&&!used.has(j));idx[c.k]=i;if(i>=0)used.add(i);});
+  const head=grid[hr].map(normH),idx={},used=new Set();[false,true].forEach(al=>D.cols.forEach(c=>{if(al?idx[c.k]>=0||!c.alias:false)return;const names=(al?c.alias:[c.h]).map(normH);const i=head.findIndex((h,j)=>names.includes(h)&&!used.has(j));idx[c.k]=i;if(i>=0)used.add(i);}));
   const miss=D.cols.filter(c=>c.req&&idx[c.k]<0).map(c=>c.h);
   if(miss.length)throw new Error(`Kolom wajib tidak ditemukan: ${miss.join(', ')}. Gunakan template ${D.label}.`);
   const seen=new Set(),out=[];
@@ -1207,6 +1319,7 @@ function validateRow(kind,raw,line,seen){
     else{const s=v instanceof Date?parseDate(v):String(v??'').trim();if(c.list&&s&&!c.list.includes(s))e.push(`${c.h} harus salah satu: ${c.list.join(', ')}`);row[c.k]=s;}
   });
   if(kind==='karyawan'){
+    KONTRAK_KEYS.forEach((k,i)=>{const a=row['berlaku_mulai_'+k],b=row['berlaku_selesai_'+k];if(a&&b&&b<a)e.push(`Masa berlaku ${i?'ADD '+i:'kontrak awal'} terbalik`);});
     const nik=(row.nik||'').toLowerCase(),em=(row.email||'').toLowerCase();
     if(nik&&(S.d.karyawan.some(k=>k.nik.toLowerCase()===nik)||seen.has('n'+nik)))e.push('No file kontrak sudah ada');
     if(em&&!/^\S+@\S+\.\S+$/.test(em))e.push('Email tidak valid');
@@ -1245,6 +1358,10 @@ async function saveImport(){
 
 /* ---------- Form pengajuan cuti (pratinjau, cetak, PDF) ---------- */
 let CUR_FORM=null;
+const SIGN_SLOTS=[['s1','Menyetujui 1'],['s2','Menyetujui 2'],['s3','Menyetujui 3'],['s4','Menyetujui 4'],['mk','Dibuat oleh'],['m1','Mengetahui 1'],['m2','Mengetahui 2']];
+let TTD={};try{TTD=JSON.parse(localStorage.getItem('hr_ttd')||'{}')||{};}catch(e){}
+const signOf=id=>({n:(TTD[id+'_n']||'').trim(),j:(TTD[id+'_j']||'').trim()});
+const DOTS='..............................';
 function cutiFormRows(c){
   if(!c){const k=null;return {nama:'',jabatan:'',rows:[['Tanggal Cuti Terakhir',''],['Tanggal Cuti Saat Ini',''],['Tanggal Keberangkatan',''],['Transportasi',''],['Tujuan Keberangkatan',''],['Tanggal Kepulangan',''],['Tujuan Kepulangan',''],['Lama Cuti',''],['Jenis Cuti',''],['Kepentingan',''],['Uang Saku Cuti',''],['Alamat & No Telp',''],['Catatan','']]};}
   const k=emp(c.karyawan_id);
@@ -1256,7 +1373,8 @@ const FORM_NOTES=['Blangko cuti diajukan oleh yang bersangkutan selambat-lambatn
 function cutiFormHtml(c){
   const d=cutiFormRows(c),proj=S.settings.nama_proyek||'';
   const line=(l,v)=>`<div class="r"><span class="l">${esc(l)}</span><span class="c">:</span><span class="v">${esc(v)}</span></div>`;
-  const sig=()=>`<div class="sig"><div class="sp"></div><div class="n">..............................</div><div class="j">..............................</div></div>`;
+  const sig=id=>{const s=signOf(id);return `<div class="sig"><div class="sp"></div><div class="n">${s.n?`<u>${esc(s.n)}</u>`:DOTS}</div><div class="j">${s.j?esc(s.j):DOTS}</div></div>`;};
+  const place=(TTD.tempat||'').trim();
   return `<!doctype html><html><head><meta charset="utf-8"><title>Form Pengajuan Cuti</title><style>
   @page{size:A4;margin:0}*{box-sizing:border-box}html,body{margin:0;background:#fff}
   body{font:10.5pt/1.35 Arial,Helvetica,sans-serif;color:#111;-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -1266,7 +1384,7 @@ function cutiFormHtml(c){
   .s{font-weight:bold;margin:3mm 0 1.5mm}.r{display:flex;align-items:flex-end;margin:0 0 2.3mm 10mm;min-height:5.2mm}
   .l{width:46mm;flex:none}.c{width:4mm;flex:none}.v{flex:1;border-bottom:1px dashed #555;padding:0 1mm .3mm;min-height:4.8mm;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .thanks{font-weight:bold;margin:4mm 0 3mm}.grid{display:grid;grid-template-columns:repeat(5,1fr);text-align:center;column-gap:3mm}
-  .h3{grid-column:1/4}.h5{grid-column:5;white-space:nowrap;font-size:9.5pt}.sig .sp{height:17mm}.sig .n{font-weight:bold}.sig .j{margin-top:1mm}
+  .h3{grid-column:1/5}.h5{grid-column:5;white-space:nowrap;font-size:9.5pt}.sig .sp{height:17mm}.sig .n{font-weight:bold;font-size:9.5pt}.sig .j{font-size:9.5pt}.sig .j{margin-top:1mm}
   .ket{text-align:center;margin-top:4mm}.grid2{display:grid;grid-template-columns:1fr 1fr;width:62%;margin:0 auto;text-align:center}
   .note{font-style:italic;font-size:8.5pt;margin-top:5mm}.note ol{margin:1mm 0 0;padding-left:5mm}
   </style></head><body><div class="page"><div class="box">
@@ -1275,17 +1393,18 @@ function cutiFormHtml(c){
   <div class="s">Yang Bertanda Tangan Di Bawah Ini :</div>${line('Nama',d.nama)}${line('Jabatan',d.jabatan)}
   <div class="s">Akan Mengajukan Cuti / Ijin / Kompensasi Dengan Keterangan Sebagai Berikut :</div>${d.rows.map(x=>line(x[0],x[1])).join('')}
   <div class="thanks">Demikian Permohonan Ini Saya Buat, Atas Perhatiannya Saya Ucapkan Terima Kasih</div>
-  <div class="grid"><div class="h3">Menyetujui</div><div></div><div class="h5">.................., ..................<br>Dibuat oleh,</div>${sig()}${sig()}${sig()}${sig()}${sig()}</div>
-  <div class="ket">Mengetahui,</div><div class="grid2">${sig()}${sig()}</div>
+  <div class="grid"><div class="h3">Menyetujui</div><div class="h5">${place?esc(place):'.................., ..................'}<br>Dibuat oleh,</div>${['s1','s2','s3','s4','mk'].map(sig).join('')}</div>
+  <div class="ket">Mengetahui,</div><div class="grid2">${sig('m1')}${sig('m2')}</div>
   <div class="note">NOTE :<ol>${FORM_NOTES.map(n=>`<li>${esc(n)}</li>`).join('')}</ol></div>
   </div></div></body></html>`;
 }
 function cutiFormModal(c){
   CUR_FORM=c;const k=c?emp(c.karyawan_id):null;
-  openModal(`<div class="m-h"><h2>${c?'Form cuti: '+esc(k.nama):'Form cuti kosong'}</h2>${closeBtn}</div><div class="m-b"><div class="form-prev"><iframe id="form-frame" title="Pratinjau form cuti"></iframe></div></div><div class="m-f"><button class="btn" data-act="form-print">Cetak</button><button class="btn primary" data-act="form-pdf">Unduh PDF</button></div>`);
+  openModal(`<div class="m-h"><h2>${c?'Form cuti: '+esc(k.nama):'Form cuti kosong'}</h2>${closeBtn}</div><div class="m-b"><details class="sign-box" open><summary>Isi penanda tangan (opsional)</summary><p class="muted small" style="margin:4px 0 10px">Kolom yang dikosongkan tampil sebagai titik-titik untuk diisi manual. Isian tersimpan di perangkat ini untuk form berikutnya.</p><div class="sign-grid"><label class="fld full">Tempat, tanggal<input data-sign="tempat" value="${esc(TTD.tempat||'')}" placeholder="Contoh: Medan, 12 November 2026"></label>${SIGN_SLOTS.map(([id,l])=>`<div class="sign-slot"><b>${esc(l)}</b><input data-sign="${id}_n" value="${esc(TTD[id+'_n']||'')}" placeholder="Nama" aria-label="Nama ${esc(l)}"><input data-sign="${id}_j" value="${esc(TTD[id+'_j']||'')}" placeholder="Jabatan" aria-label="Jabatan ${esc(l)}"></div>`).join('')}</div><button type="button" class="btn sm" data-act="sign-clear" style="margin-top:10px">Kosongkan semua</button></details><div class="form-prev"><iframe id="form-frame" title="Pratinjau form cuti"></iframe></div></div><div class="m-f"><button class="btn" data-act="form-print">Cetak</button><button class="btn primary" data-act="form-pdf">Unduh PDF</button></div>`);
   M().classList.add('wide');
   const f=$('#form-frame'),box=f.parentElement;f.srcdoc=cutiFormHtml(c);
   const fit=()=>{const s=Math.min(1,box.clientWidth/794);f.style.transform=`scale(${s})`;box.style.height=(1119*s)+'px';};fit();
+  let tm;$$('[data-sign]').forEach(i=>i.addEventListener('input',()=>{TTD[i.dataset.sign]=i.value;try{localStorage.setItem('hr_ttd',JSON.stringify(TTD));}catch(e){}clearTimeout(tm);tm=setTimeout(()=>{f.srcdoc=cutiFormHtml(CUR_FORM);},250);}));
 }
 function cutiFormPdf(c){
   const d=cutiFormRows(c),proj=S.settings.nama_proyek||'',doc=newPdf('portrait'),W=210;
@@ -1300,10 +1419,12 @@ function cutiFormPdf(c){
   head('Akan Mengajukan Cuti / Ijin / Kompensasi Dengan Keterangan Sebagai Berikut :');d.rows.forEach(x=>row(x[0],x[1]));
   y+=1;doc.setFont('helvetica','bold');doc.text('Demikian Permohonan Ini Saya Buat, Atas Perhatiannya Saya Ucapkan Terima Kasih',20,y);
   doc.setFont('helvetica','normal');const cw=(W-40)/5,cx=i=>20+cw*(i+.5);y+=9;
-  doc.text('Menyetujui',cx(1),y,{align:'center'});doc.text('.................., ..................',cx(4),y,{align:'center'});doc.text('Dibuat oleh,',cx(4),y+4.5,{align:'center'});
-  const sig=(x,yy)=>{doc.text('..............................',x,yy,{align:'center'});doc.text('..............................',x,yy+5,{align:'center'});};
-  for(let i=0;i<5;i++)sig(cx(i),y+24);
-  y+=36;doc.text('Mengetahui,',W/2,y,{align:'center'});sig(W/2-32,y+21);sig(W/2+32,y+21);
+  const place=(TTD.tempat||'').trim();
+  doc.text('Menyetujui',(cx(0)+cx(3))/2,y,{align:'center'});doc.text(place||'.................., ..................',cx(4),y,{align:'center'});doc.text('Dibuat oleh,',cx(4),y+4.5,{align:'center'});
+  const fit=(t,w)=>{while(doc.getTextWidth(t)>w&&t.length>1)t=t.slice(0,-2)+'…';return t;};
+  const sig=(id,x,yy)=>{const s=signOf(id);doc.setFontSize(8.8);if(s.n){doc.setFont('helvetica','bold');const t=fit(s.n,cw-2);doc.text(t,x,yy,{align:'center'});const tw=doc.getTextWidth(t);doc.setLineWidth(.2);doc.line(x-tw/2,yy+.8,x+tw/2,yy+.8);doc.setFont('helvetica','normal');}else doc.text(DOTS,x,yy,{align:'center'});if(s.j){doc.setFontSize(8.2);doc.text(doc.splitTextToSize(s.j,cw-1).slice(0,2),x,yy+4.6,{align:'center',lineHeightFactor:1.1});}else doc.text(DOTS,x,yy+5,{align:'center'});doc.setFontSize(9.5);};
+  ['s1','s2','s3','s4','mk'].forEach((id,i)=>sig(id,cx(i),y+24));
+  y+=36;doc.text('Mengetahui,',W/2,y,{align:'center'});sig('m1',W/2-32,y+21);sig('m2',W/2+32,y+21);
   y+=33;doc.setFont('helvetica','italic');doc.setFontSize(8.5);doc.text('NOTE :',20,y);FORM_NOTES.forEach((n,i)=>doc.text(`${i+1}. ${n}`,20,y+4.5*(i+1)));
   const k=c?emp(c.karyawan_id):null;doc.save(fileSafe(c?`Form Cuti - ${k.nama} - ${c.mulai}`:'Form Cuti Kosong')+'.pdf');
 }
@@ -1313,6 +1434,8 @@ function openModal(html){M().classList.remove('wide');M().innerHTML=html;if(!M()
 const closeBtn=`<button class="icon-btn" data-act="m-close" aria-label="Tutup">${icon(IC.x)}</button>`;
 function field(f,v){
   if(f.head)return `<h3 class="full" style="font-size:14px;margin-top:6px;padding-top:10px;border-top:1px solid var(--line-2)">${esc(f.head)}</h3>`;
+  if(f.sub)return `<h4 class="full" style="margin:4px 0 -4px;font-size:13px;color:var(--jade-d)">${esc(f.sub)}</h4>`;
+  if(f.html)return f.html;
   const id='f_'+f.k,req=f.req?'required':'',val=v??f.def??'';let c;
   if(f.type==='select')c=`<select id="${id}" name="${f.k}" ${req}>${f.blank!=null?`<option value="">${esc(f.blank)}</option>`:''}${f.opts.map(o=>{const x=typeof o==='object'?o:{v:o,t:o};return `<option value="${esc(x.v)}" ${String(val)===String(x.v)?'selected':''}>${esc(x.t)}</option>`;}).join('')}</select>`;
   else if(f.type==='textarea')c=`<textarea id="${id}" name="${f.k}" ${req}>${esc(val)}</textarea>`;
@@ -1320,8 +1443,9 @@ function field(f,v){
   else c=`<input id="${id}" name="${f.k}" type="${f.type||'text'}" value="${esc(val)}" ${req} ${f.min!=null?`min="${f.min}"`:''} ${f.step?`step="${f.step}"`:''} ${f.list?`list="${id}_l"`:''}>${f.list?`<datalist id="${id}_l">${f.list.map(o=>`<option value="${esc(o)}">`).join('')}</datalist>`:''}`;
   return `<label class="fld ${f.full?'full':''}"><span>${esc(f.l)}${f.req?' <span class="req">*</span>':''}</span>${c}${f.help?`<span class="help">${esc(f.help)}</span>`:''}</label>`;
 }
-function formModal({title,fields,values={},submit='Simpan',onSubmit,intro,danger}){
+function formModal({title,fields,values={},submit='Simpan',onSubmit,intro,danger,live}){
   openModal(`<form id="mf" novalidate><div class="m-h"><h2>${esc(title)}</h2>${closeBtn}</div><div class="m-b"><div id="merr"></div>${intro?`<p class="muted" style="margin-bottom:12px">${esc(intro)}</p>`:''}<div class="form">${fields.map(f=>field(f,values[f.k])).join('')}</div></div><div class="m-f"><button type="button" class="btn" data-act="m-close">Batal</button><button class="btn ${danger?'danger':'primary'}" type="submit">${esc(submit)}</button></div></form>`);
+  if(live){const f=$('#mf');const run=e=>live(f,e);f.addEventListener('input',run);f.addEventListener('change',run);run(null);}
   $('#mf').onsubmit=async ev=>{ev.preventDefault();const form=ev.target;
     const showErr=m=>{$('#merr').innerHTML=`<div class="err">${esc(m)}</div>`;$('#merr').scrollIntoView({block:'nearest'});};
     if(!form.checkValidity()){const b=$$('input,select,textarea',form).find(x=>!x.checkValidity());const lab=b.closest('label').querySelector('span').textContent.replace('*','').trim();showErr(b.validity.valueMissing?`${lab} wajib diisi.`:`${lab} tidak valid.`);b.focus();return;}
@@ -1334,20 +1458,53 @@ function confirmModal(title,text,label,fn){
   openModal(`<div class="m-h"><h2>${esc(title)}</h2>${closeBtn}</div><div class="m-b"><div id="merr"></div><p>${esc(text)}</p></div><div class="m-f"><button class="btn" data-act="m-close">Batal</button><button class="btn danger" id="m-ok">${esc(label)}</button></div>`);
   $('#m-ok').onclick=async ev=>{ev.target.disabled=true;try{const msg=await fn();M().close();await reload();render();if(msg)toast(msg);}catch(e){console.error(e);$('#merr').innerHTML=`<div class="err">${esc(friendly(e))}</div>`;ev.target.disabled=false;}};
 }
-const EMP_GROUPS=[['Identitas',['nik','nama','jenis_kelamin','tempat_lahir','tgl_lahir','agama','status_ptkp','jenjang','jurusan']],['Pekerjaan',['jenis_karyawan','proyek','unit_kerja','lokasi','jabatan','jabatan_fungsional','departemen','cuti_ket']],['Kontrak',['no_kontrak_awal','tgl_masuk','no_kontrak_add1','kontrak_add1','no_kontrak_add2','kontrak_add2','no_kontrak_add3','kontrak_add3','no_kontrak_add4','kontrak_add4','no_kontrak_add5','kontrak_add5','kontrak_berakhir']],['Gaji dan dokumen',['gaji','kenaikan_gaji','npwp','no_kk','ktp','alamat_ktp']]];
+const EMP_GROUPS=[['Identitas',['nik','nama','jenis_kelamin','tempat_lahir','tgl_lahir','agama','status_ptkp','jenjang','jurusan']],['Pekerjaan',['jenis_karyawan','proyek','unit_kerja','lokasi','jabatan','jabatan_fungsional','departemen','cuti_ket']],['Kontrak',[]],['Gaji dan dokumen',['gaji','kenaikan_gaji','npwp','no_kk','ktp','alamat_ktp']]];
 const kcOf=k=>IMPORT_DEF.karyawan.cols.find(c=>c.k===k);
+function kontrakDetail(r){
+  const blocks=KONTRAK_KEYS.map((k,i)=>{const no=r['no_kontrak_'+k],tg=i?r['kontrak_add'+i]:r.tgl_masuk,a=r['berlaku_mulai_'+k],b=r['berlaku_selesai_'+k];
+    if(i&&!no&&!tg&&!a&&!b)return '';const L=i?'ADD '+i:'AWAL';
+    return `<div class="kblk"><b>${i?'Kontrak addendum '+i:'Kontrak awal'}</b><div class="slip-l"><span class="muted">NOMOR KONTRAK ${L}</span><span class="right">${esc(no||'-')}</span></div><div class="slip-l"><span class="muted">TANGGAL KONTRAK ${L}</span><span class="right">${tg?fmtDate(tg):'-'}</span></div><div class="slip-l"><span class="muted">MASA BERLAKU KONTRAK ${L}</span><span class="right">${a||b?`${a?fmtDate(a):'-'} s.d. ${b?fmtDate(b):'-'}`:'-'}</span></div></div>`;}).join('');
+  return blocks+(KONTRAK_KEYS.slice(1).some((k,i)=>r['no_kontrak_'+k]||r['kontrak_add'+(i+1)]||r['berlaku_mulai_'+k]||r['berlaku_selesai_'+k])?'':'<p class="muted small" style="margin:6px 0">Belum ada kontrak addendum.</p>');
+}
 function empFields(){
   const lists={departemen:depts(),jenis_karyawan:[...new Set([...JENIS_KARYAWAN,...jenisList()])],proyek:[...new Set(S.d.karyawan.map(k=>k.proyek).filter(Boolean))]};
   const out=[];
-  EMP_GROUPS.forEach(([g,keys])=>{out.push({head:g});keys.forEach(k=>{const c=kcOf(k),f={k,l:c.h,req:c.req,list:lists[k]};if(c.date)f.type='date';if(c.n){f.type='number';f.min=0;f.step=1;f.def=0;}if(k==='alamat_ktp'){f.type='textarea';f.full=1;}if(k==='nama'||k==='proyek')f.full=1;if(k==='kontrak_berakhir')f.help='Masa kerja dihitung dari Kontrak Awal sampai tanggal ini. Bila kosong, dihitung sampai hari ini.';out.push(f);});});
+  EMP_GROUPS.forEach(([g,keys])=>{out.push({head:g});if(g==='Kontrak')KONTRAK_KEYS.forEach((kk,i)=>{out.push({sub:i?`Kontrak addendum ${i}`:'Kontrak awal'});IMPORT_DEF.karyawan.cols.filter(c=>c.kg===kk).forEach(c=>out.push({k:c.k,l:c.h,type:c.date?'date':undefined}));});keys.forEach(k=>{const c=kcOf(k),f={k,l:c.h,req:c.req,list:lists[k]};if(c.date)f.type='date';if(c.n){f.type='number';f.min=0;f.step=1;f.def=0;}if(k==='alamat_ktp'){f.type='textarea';f.full=1;}if(k==='nama'||k==='proyek')f.full=1;out.push(f);});});
   out.push({head:'Akun dan pengaturan'},{k:'email',l:'Email',type:'email',help:'Karyawan mendaftar akun dengan email ini.'},{k:'telepon',l:'Telepon'},{k:'status',l:'Status',type:'select',opts:['Aktif','Nonaktif']},{k:'kuota_cuti',l:'Kuota cuti per tahun',type:'number',min:0,step:1,req:1,def:S.settings.kuota_default});
   return out;
 }
-function cleanEmp(v){const r={...v,nik:v.nik.trim(),nama:v.nama.trim(),email:(v.email||'').trim()||null,jenis_karyawan:(v.jenis_karyawan||'').trim()||'Kontrak'};IMPORT_DEF.karyawan.cols.filter(c=>c.date).forEach(c=>{r[c.k]=r[c.k]||null;});return r;}
+function cleanEmp(v){KONTRAK_KEYS.forEach((k,i)=>{const a=v['berlaku_mulai_'+k],b=v['berlaku_selesai_'+k];if(a&&b&&b<a)throw new Error(`Masa berlaku ${i?'kontrak addendum '+i:'kontrak awal'}: tanggal selesai tidak boleh sebelum tanggal mulai.`);});const r={...v,nik:v.nik.trim(),nama:v.nama.trim(),email:(v.email||'').trim()||null,jenis_karyawan:(v.jenis_karyawan||'').trim()||'Kontrak'};IMPORT_DEF.karyawan.cols.filter(c=>c.date).forEach(c=>{r[c.k]=r[c.k]||null;});return r;}
 function empDetail(r){const p=privOf(r),val=k=>{const c=kcOf(k),v=PRIV_KEYS.includes(k)?p[k]:r[k];return c.date?fmtDate(v):c.n?rupiah(v):(v||'-');};
-  openModal(`<div class="m-h"><h2>${esc(r.nama)}</h2>${closeBtn}</div><div class="m-b">${EMP_GROUPS.map(([g,keys])=>`<h3 style="font-size:14px;margin:12px 0 6px">${esc(g)}</h3>${keys.map(k=>`<div class="slip-l"><span class="muted">${esc(kcOf(k).h)}</span><span class="right" style="overflow-wrap:anywhere">${esc(val(k))}</span></div>`).join('')}`).join('')}<h3 style="font-size:14px;margin:12px 0 6px">Dihitung otomatis</h3><div class="slip-l"><span class="muted">UMUR</span><span>${esc(usiaOf(r.tgl_lahir)===''?'-':usiaOf(r.tgl_lahir)+' tahun')}</span></div><div class="slip-l"><span class="muted">MASA KERJA</span><span class="right">${esc(masaKerja(r)||'-')}${masaStart(r)?`<span class="sub-t">dari ${esc(masaStart(r).l)} sampai ${r.kontrak_berakhir?'KONTRAK BERAKHIR':'hari ini'}</span>`:''}</span></div></div>`);}
+  openModal(`<div class="m-h"><h2>${esc(r.nama)}</h2>${closeBtn}</div><div class="m-b">${EMP_GROUPS.map(([g,keys])=>`<h3 style="font-size:14px;margin:12px 0 6px">${esc(g)}</h3>${g==='Kontrak'?kontrakDetail(r):''}${keys.map(k=>`<div class="slip-l"><span class="muted">${esc(kcOf(k).h)}</span><span class="right" style="overflow-wrap:anywhere">${esc(val(k))}</span></div>`).join('')}`).join('')}<h3 style="font-size:14px;margin:12px 0 6px">Dihitung otomatis</h3><div class="slip-l"><span class="muted">UMUR</span><span>${esc(usiaOf(r.tgl_lahir)===''?'-':usiaOf(r.tgl_lahir)+' tahun')}</span></div><div class="slip-l"><span class="muted">MASA KERJA</span><span class="right">${esc(masaKerja(r)||'-')}${masaRange(r)?`<span class="sub-t">${fmtDate(masaRange(r).a)} s.d. ${masaRange(r).toToday?'hari ini':fmtDate(masaRange(r).b)}</span>`:''}</span></div></div>`);}
 const empOpts=()=>S.d.karyawan.filter(k=>k.status==='Aktif').sort((a,b)=>a.nama.localeCompare(b.nama)).map(k=>({v:k.id,t:`${k.nama} (${k.nik})`}));
 const moneyF=(k,l,req)=>({k,l,type:'number',min:0,step:1,req,def:0});
+const tarifFields=()=>[{k:'transport',l:'Transportasi',type:'select',opts:TRANSPORT,req:1},{k:'tujuan',l:'Tujuan / lokasi asal',req:1,help:'Contoh: Medan - Jakarta',list:[...new Set(S.d.tarif_tiket.map(t=>t.tujuan))]},{k:'harga',l:'Harga tiket',type:'number',min:0,step:1,req:1,full:1}];
+function kompLines(r){const c=kompCalc(r);return [['1. Jumlah gaji',rupiah(r.gaji)],['2. Harga tiket'+(r.transport?` (${r.transport}${r.tujuan?', '+r.tujuan:''})`:''),rupiah(r.harga_tiket)],[`3. Nilai kompensasi cuti (gaji ÷ 30 × ${num(r.hari)} hari × 50%)`,rupiah(c.nilai_cuti)],['4. Total pengganti (2 + 3)',rupiah(c.total)]];}
+function kompForm(r){
+  const edit=!!r;
+  formModal({title:edit?'Ubah kompensasi cuti':'Tambah kompensasi cuti',intro:'Hari yang dikompensasikan mengurangi kuota cuti tahunan pada tahun kuota yang dipilih.',
+    fields:[{k:'karyawan_id',l:'Karyawan',type:'select',req:1,blank:'Pilih karyawan',opts:empOpts(),full:1},{k:'tahun',l:'Tahun kuota',type:'number',min:2000,step:1,req:1,def:thisYear()},{k:'tanggal',l:'Tanggal pengajuan',type:'date',req:1,def:today()},
+      {k:'hari',l:'Jumlah hari dikompensasikan',type:'number',min:1,step:1,req:1,def:10,help:'Rumus memakai 10 hari sesuai ketentuan.'},{k:'status',l:'Status',type:'select',opts:STATUS_CUTI,def:'Disetujui'},
+      {head:'Perhitungan'},{k:'gaji',l:'1. Jumlah gaji',type:'number',min:0,step:1,req:1,def:0,full:1,help:'Terisi otomatis dari data gaji karyawan; bisa diubah.'},
+      {k:'transport',l:'Transportasi',type:'select',blank:'Pilih transportasi',opts:TRANSPORT},{k:'tujuan',l:'Tujuan / lokasi asal',list:[...new Set(S.d.tarif_tiket.map(t=>t.tujuan))]},
+      {k:'harga_tiket',l:'2. Harga tiket',type:'number',min:0,step:1,def:0,full:1,help:'Terisi otomatis dari Tarif tiket bila transportasi dan tujuan cocok; bisa diubah.'},
+      {html:'<div id="calc" class="full calc"></div>'},{k:'catatan',l:'Catatan',type:'textarea',full:1}],
+    values:r||{},submit:edit?'Simpan perubahan':'Simpan kompensasi',
+    live:(f,e)=>{const g=n=>f.querySelector(`[name=${n}]`),t=e&&e.target&&e.target.name;
+      if(t==='karyawan_id'){const k=find('karyawan',g('karyawan_id').value);if(k&&num(privOf(k).gaji))g('gaji').value=num(privOf(k).gaji);}
+      if(t==='transport'||t==='tujuan'){const tr=S.d.tarif_tiket.find(x=>x.transport===g('transport').value&&x.tujuan.toLowerCase()===g('tujuan').value.trim().toLowerCase());if(tr)g('harga_tiket').value=num(tr.harga);}
+      const v={gaji:num(g('gaji').value),hari:num(g('hari').value),harga_tiket:num(g('harga_tiket').value),transport:g('transport').value,tujuan:g('tujuan').value.trim()};
+      $('#calc').innerHTML=kompLines(v).map((x,i)=>`<div class="slip-l ${i===3?'t':''}"><span>${esc(x[0])}</span><span class="nowrap">${esc(x[1])}</span></div>`).join('');},
+    onSubmit:async v=>{const row={...v,tujuan:(v.tujuan||'').trim(),tahun:Number(v.tahun),...kompCalc(v)};const e=checkKomp(row,r&&r.id);if(e)throw new Error(e);
+      if(edit)await Api.update('kompensasi',[r.id],row);else await Api.insert('kompensasi',[row]);return edit?'Kompensasi diperbarui.':'Kompensasi disimpan.';}});
+}
+function kompDetail(r){const k=emp(r.karyawan_id);
+  openModal(`<div class="m-h"><h2>Rincian kompensasi cuti</h2>${closeBtn}</div><div class="m-b"><div class="slip-meta"><div><span class="muted">Nama:</span> <b>${esc(k.nama)}</b></div><div><span class="muted">No File:</span> ${esc(k.nik)}</div><div><span class="muted">Jabatan:</span> ${esc(k.jabatan||'-')}</div><div><span class="muted">Tahun kuota:</span> ${esc(r.tahun)} (${num(r.hari)} hari)</div></div><div class="calc">${kompLines(r).map((x,i)=>`<div class="slip-l ${i===3?'t':''}"><span>${esc(x[0])}</span><span class="nowrap">${esc(x[1])}</span></div>`).join('')}</div><p class="muted small" style="margin-top:10px">Status: ${esc(r.status)}${r.catatan?'. Catatan: '+esc(r.catatan):''}</p></div><div class="m-f"><button class="btn primary" data-act="komp-pdf" data-id="${r.id}">Unduh PDF</button></div>`);}
+function kompPdf(r){const k=emp(r.karyawan_id),doc=newPdf('portrait'),title='Rincian Kompensasi Cuti';
+  pdfHeader(doc,title,S.settings.nama_proyek||printedAt());
+  doc.autoTable({startY:34,theme:'plain',styles:{fontSize:10,cellPadding:1},columnStyles:{0:{cellWidth:32,textColor:[75,98,92]},2:{cellWidth:32,textColor:[75,98,92]}},body:[['Nama',k.nama,'No File',k.nik],['Jabatan',k.jabatan||'-','Tahun kuota',`${r.tahun} (${num(r.hari)} hari)`]],margin:{left:14,right:14}});
+  const L=kompLines(r);doc.autoTable({startY:doc.lastAutoTable.finalY+6,theme:'grid',styles:{fontSize:10,cellPadding:2.4,lineColor:[201,214,209],lineWidth:.15},headStyles:{fillColor:[15,107,92]},columnStyles:{1:{halign:'right',cellWidth:45}},head:[['Komponen','Nilai']],body:L.slice(0,3),foot:[[L[3][0],{content:L[3][1],styles:{halign:'right'}}]],footStyles:{fillColor:[220,239,233],textColor:[22,48,43]},margin:{left:14,right:14}});
+  doc.setFontSize(9);doc.setTextColor(75,98,92);doc.text(`Status: ${r.status}. ${printedAt()}`,14,doc.lastAutoTable.finalY+8);pdfFooters(doc);doc.save(fileSafe(`Kompensasi Cuti - ${k.nama} - ${r.tahun}`)+'.pdf');}
 const slipFields=edit=>[{k:'karyawan_id',l:'Karyawan',type:'select',req:1,blank:'Pilih karyawan',opts:empOpts(),full:1},{k:'periode',l:'Periode',type:'month',req:1,full:1,def:today().slice(0,7)},moneyF('gaji_pokok','Gaji pokok',1),moneyF('tunjangan','Tunjangan'),moneyF('lembur','Lembur'),moneyF('bonus','Bonus'),moneyF('bpjs','BPJS'),moneyF('pph21','PPh 21'),moneyF('potongan_lain','Potongan lain'),{k:'catatan',l:'Catatan',full:1}];
 function slipModal(s){
   const k=emp(s.karyawan_id),L=slipLines(s),line=x=>`<div class="slip-l"><span>${esc(x[0])}</span><span>${rupiah(x[1])}</span></div>`,sum=a=>a.reduce((t,x)=>t+num(x[1]),0);
@@ -1410,9 +1567,20 @@ const ACT={
   async 'slip-xl'(el){try{await slipExcel(find('slip_gaji',el.dataset.id));toast('Slip gaji Excel diunduh.');}catch(e){toast(friendly(e),1);}},
   'cuti-form'(el){cutiFormModal(find('cuti',el.dataset.id));},
   'form-blank'(){cutiFormModal(null);},
+  'sign-clear'(){TTD={};try{localStorage.removeItem('hr_ttd');}catch(e){}$$('[data-sign]').forEach(i=>i.value='');$('#form-frame').srcdoc=cutiFormHtml(CUR_FORM);},
   'form-print'(){try{const f=$('#form-frame');f.contentWindow.focus();f.contentWindow.print();}catch(e){toast('Gagal membuka jendela cetak. Gunakan Unduh PDF lalu cetak dari file.',1);}},
   'form-pdf'(){try{cutiFormPdf(CUR_FORM);toast('Form cuti PDF diunduh.');}catch(e){console.error(e);toast(friendly(e),1);}},
   'dok-open'(el){const c=find('cuti',el.dataset.id),w=window.open('','_blank');Api.dokUrl(c.dokumen_path).then(u=>{if(w)w.location.href=u;else{const a=document.createElement('a');a.href=u;a.download=c.dokumen_nama||'dokumen';document.body.append(a);a.click();a.remove();}}).catch(e=>{if(w)w.close();toast(friendly(e),1);});},
+  'komp-add'(){kompForm(null);},
+  'komp-edit'(el){kompForm(find('kompensasi',el.dataset.id));},
+  'komp-view'(el){kompDetail(find('kompensasi',el.dataset.id));},
+  async 'komp-ok'(el){try{await Api.update('kompensasi',[el.dataset.id],{status:'Disetujui'});await reload();render();toast('Kompensasi disetujui.');}catch(e){toast(friendly(e),1);}},
+  async 'komp-no'(el){try{await Api.update('kompensasi',[el.dataset.id],{status:'Ditolak'});await reload();render();toast('Kompensasi ditolak.');}catch(e){toast(friendly(e),1);}},
+  'komp-del'(el){confirmModal('Hapus kompensasi','Data kompensasi ini akan dihapus dan kuota cuti dihitung ulang.','Hapus data',async()=>{await Api.remove('kompensasi',el.dataset.id);return 'Kompensasi dihapus.';});},
+  'komp-pdf'(el){try{kompPdf(find('kompensasi',el.dataset.id));toast('Rincian kompensasi diunduh.');}catch(e){console.error(e);toast(friendly(e),1);}},
+  'tarif-add'(){formModal({title:'Tambah tarif tiket',fields:tarifFields(),onSubmit:async v=>{await Api.insert('tarif_tiket',[{...v,tujuan:v.tujuan.trim()}]);return 'Tarif ditambahkan.';}});},
+  'tarif-edit'(el){const r=find('tarif_tiket',el.dataset.id);formModal({title:'Ubah tarif tiket',fields:tarifFields(),values:r,onSubmit:async v=>{await Api.update('tarif_tiket',[r.id],{...v,tujuan:v.tujuan.trim()});return 'Tarif diperbarui.';}});},
+  'tarif-del'(el){confirmModal('Hapus tarif','Tarif ini akan dihapus. Kompensasi yang sudah tercatat tidak berubah.','Hapus tarif',async()=>{await Api.remove('tarif_tiket',el.dataset.id);return 'Tarif dihapus.';});},
   'role-set'(el){const r=find('profil',el.dataset.id);formModal({title:'Ubah peran',intro:r.email,fields:[{k:'role',l:'Peran',type:'select',full:1,opts:Object.entries(ROLE_LABEL).map(([v,t])=>({v,t}))}],values:r,onSubmit:async v=>{await Api.update('profil',[r.id],{role:v.role});return 'Peran diperbarui.';}});},
   'theme-set'(el){themeNow=applyTheme(el.dataset.id);try{localStorage.setItem('hr_tema',themeNow);}catch(e){}$$('.theme').forEach(b=>b.setAttribute('aria-pressed',b===el));const sw=$('.theme-btn .sw');if(sw)sw.innerHTML=swatch(THEMES.find(t=>t.id===themeNow));},
   'pw-change'(){formModal({title:'Ubah kata sandi',fields:[{k:'password',l:'Kata sandi baru',type:'password',req:1,full:1,help:'Minimal 8 karakter.'}],submit:'Simpan kata sandi',onSubmit:async v=>{if(v.password.length<8)throw new Error('Kata sandi minimal 8 karakter.');await Api.updatePw(v.password);return 'Kata sandi diperbarui.';}});},
@@ -1450,7 +1618,7 @@ function render(){
 }
 async function reload(){
   const d=await Api.loadAll(S.user.role);
-  ['karyawan','karyawan_privat','shift','cuti','slip_gaji','profil','log_aktivitas'].forEach(t=>S.d[t]=d[t]?[...d[t]]:[]);
+  ['karyawan','karyawan_privat','shift','kompensasi','tarif_tiket','cuti','slip_gaji','profil','log_aktivitas'].forEach(t=>S.d[t]=d[t]?[...d[t]]:[]);
   S.privBy=new Map(S.d.karyawan_privat.map(p=>[p.karyawan_id,p]));
   const s=await Api.loadSettings();if(s)S.settings={...S.settings,...s};
 }
